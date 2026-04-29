@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+
+# Reports / runtime
+reports/
+*.log
+
+# System
+.DS_Store
+
+# Images OS
+*.img
+*.xz
+
+# Temp
+*.tmp
