@@ -164,6 +164,12 @@ class MenuDisplay:
             self._buffer = Image.new("1", device.size, 0)
             self._last_hash = None
 
+    def invalidate(self):
+        """Fuerza redibujado completo real"""
+        with self.lock:
+            self._last_hash = None
+            self._buffer = Image.new("1", device.size, 0)
+
     def render(self, options, position):
         """Render menú con franja de selección"""
         with self.lock:
@@ -174,7 +180,7 @@ class MenuDisplay:
             x_text = 4
 
             try:
-                line_height = self.font.getbbox("Ay")[3] + 4   # más preciso que getsize en PIL nuevo
+                line_height = self.font.getbbox("Ay")[3] + 4  
             except Exception:
                 line_height = 14  # fallback
 
@@ -260,7 +266,7 @@ class MenuDisplay:
 
             self._update_differential(img)
 
- 
+  
     def display(self, img):
         """Método directo para compatibilidad"""
         with self.lock:
