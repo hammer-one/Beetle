@@ -12,7 +12,7 @@ from menus.lan_menu import LanMenu
 from tools.wifi.lan_scanner import is_wifi_client_connected
 from tools.bjorn.bjorn_runner import BjornRunner
 
-class MenuManager:   
+class MenuManager:
 
     VISIBLE = 4  # número de líneas a mostrar
 
@@ -23,10 +23,10 @@ class MenuManager:
         self._render_window()
 
     def _get_current_options(self):
-      
+        """Devuelve la lista de opciones. SCAN LAN aparece solo si está conectado como cliente."""
         options = ["WIFI", "BLUETOOTH", "BEETLEGOTCHI", "PWM_TEST", "CALCULATOR", "UTILITIES"]
         if is_wifi_client_connected():
-           
+          
             try:
                 wifi_idx = options.index("WIFI")
                 options.insert(wifi_idx + 1, "SCAN LAN")
@@ -37,7 +37,7 @@ class MenuManager:
         return options
 
     def _render_window(self):
-        self.options = self._get_current_options()          
+        self.options = self._get_current_options()          # ← actualiza dinámicamente
 
         # Evitamos que la posición quede inválida si se desconecta el WiFi
         if self.position >= len(self.options):
@@ -64,11 +64,10 @@ class MenuManager:
             elif btns["enter"]:
                 choice = self.options[self.position]
 
-           
                 if choice == "SCAN LAN":
                     LanMenu().run()
                 elif choice == "BJORN":
-                    BjornRunner().run()              
+                    BjornRunner().run()
                 elif choice == "WIFI":
                     WifiMenu().run()
                 elif choice == "BLUETOOTH":
@@ -82,8 +81,9 @@ class MenuManager:
                 elif choice == "UTILITIES":
                     UtilsMenu().run()
 
-          
+                # Al volver de cualquier submenú, volvemos al tope
                 self.position = 0
+                self.display.invalidate()
                 last_pos = -1  # forzar redraw
 
             # solo redraw si cambió la posición
