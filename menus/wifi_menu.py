@@ -115,16 +115,64 @@ class WifiMenu:
                     return
                 elif choice == "CAPTURE_CLON":
                     run_eviltwin(ssid, bssid, channel)
+                    pos = 0
+                    scroll_offset = 0
+                    last_pos = -1
+                    self.display.invalidate()
+                    self.display.render(
+                        tools[scroll_offset:scroll_offset + VISIBLE_LINES],
+                        pos - scroll_offset
+                    )
                 elif choice == "BULLY":
                     run_bully(ssid, bssid, channel)
+                    pos = 0
+                    scroll_offset = 0
+                    last_pos = -1
+                    self.display.invalidate()
+                    self.display.render(
+                        tools[scroll_offset:scroll_offset + VISIBLE_LINES],
+                        pos - scroll_offset
+                    )
                 elif choice == "CAPTURE_MDK4":
                     run_mdk4(ssid, bssid, channel)
+                    pos = 0
+                    scroll_offset = 0
+                    last_pos = -1
+                    self.display.invalidate()
+                    self.display.render(
+                        tools[scroll_offset:scroll_offset + VISIBLE_LINES],
+                        pos - scroll_offset
+                    )
                 elif choice == "REAVER":
                     run_reaver(ssid, bssid, channel)
+                    pos = 0
+                    scroll_offset = 0
+                    last_pos = -1
+                    self.display.invalidate()
+                    self.display.render(
+                        tools[scroll_offset:scroll_offset + VISIBLE_LINES],
+                        pos - scroll_offset
+                    )
                 elif choice == "CRACK_PASS":
                     run_aircrack(ssid, bssid, channel)
+                    pos = 0
+                    scroll_offset = 0
+                    last_pos = -1
+                    self.display.invalidate()
+                    self.display.render(
+                        tools[scroll_offset:scroll_offset + VISIBLE_LINES],
+                        pos - scroll_offset
+                    )
                 elif choice == "CAPTURE_AIREPLAY":
                     run_aireplay(ssid, bssid, channel)
+                    pos = 0
+                    scroll_offset = 0
+                    last_pos = -1
+                    self.display.invalidate()
+                    self.display.render(
+                        tools[scroll_offset:scroll_offset + VISIBLE_LINES],
+                        pos - scroll_offset
+                    )
                 elif choice == "CAPTURE_HCXTOOLS":
                     run_hcxtools(ssid, bssid, channel)
                 # al terminar la herramienta, volvemos a poner posición en 0
