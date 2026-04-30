@@ -107,10 +107,34 @@ class BluetoothMenu:
                     return
                 elif choice == "DEAUTH":
                     run_bt_deauth(name, mac, rssi)
+                    pos = 0
+                    scroll_offset = 0
+                    last_pos = -1
+                    self.display.invalidate()
+                    self.display.render(
+                        tools[scroll_offset:scroll_offset + VISIBLE_LINES],
+                        pos - scroll_offset
+                    )
                 elif choice == "ADVERTISE":
                     run_bt_advertise(name, mac, rssi)
+                    pos = 0
+                    scroll_offset = 0
+                    last_pos = -1
+                    self.display.invalidate()
+                    self.display.render(
+                        tools[scroll_offset:scroll_offset + VISIBLE_LINES],
+                        pos - scroll_offset
+                    )
                 elif choice == "FORCE_PIN":
                     run_bt_force_pin(name, mac, rssi)
+                    pos = 0
+                    scroll_offset = 0
+                    last_pos = -1
+                    self.display.invalidate()
+                    self.display.render(
+                        tools[scroll_offset:scroll_offset + VISIBLE_LINES],
+                        pos - scroll_offset
+                    )
                 elif choice == "SPOOFING":
                     run_bt_spoofing(name, mac, rssi)
 
@@ -127,4 +151,3 @@ class BluetoothMenu:
                 last_pos = pos
 
             time.sleep(REPEAT_DELAY)
-
