@@ -6,14 +6,12 @@ from functools import wraps
 from urllib.parse import quote, unquote
 
 app = Flask(__name__)
-# Cambia esta clave si querés persistencia segura entre reinicios
 app.secret_key = os.environ.get("BEETLE_SECRET") or "beetle-dev-secret"
 
 BASE_DIR = "/opt/beetle"
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
 CATEGORIES = ["wifi", "bt"]
 
-# Credenciales simples
 USER = "pi"
 PASS = "Beetle2580"
 
