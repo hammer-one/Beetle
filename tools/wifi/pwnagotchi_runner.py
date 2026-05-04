@@ -12,6 +12,7 @@ from display.screen import MenuDisplay, device
 from config.gpio_config import read_buttons, REPEAT_DELAY
 from tools.wifi.scanner import scan_networks, count_clients
 from PIL import Image, ImageDraw, ImageFont
+from tools.wifi.wpa_sec_uploader import run_wpa_sec_upload
 
 VISIBLE_LINES = 4
 
@@ -785,7 +786,7 @@ class PwnagotchiRunner:
         time.sleep(2.5)
 
     def run(self):
-        options = ["SCAN", "CRACK", "BORRAR", "BACK"]
+        options = ["SCAN", "CRACK", "UPLOAD_WPASEC", "DELETE_ALL", "BACK"]
         position = 0
         last_pos = -1
         while True:
@@ -804,7 +805,9 @@ class PwnagotchiRunner:
                     self._run_scan_mode()
                 elif choice == "CRACK":
                     self._crack_menu()
-                elif choice == "BORRAR":
+                elif choice == "UPLOAD_WPASEC":
+                    run_wpa_sec_upload()
+                elif choice == "DELETE_ALL":
                     self._borrar_menu()
                 position = 0
                 last_pos = -1
