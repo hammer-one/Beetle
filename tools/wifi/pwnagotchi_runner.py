@@ -533,14 +533,23 @@ class PwnagotchiRunner:
         return False
 
     def _is_valid_capture(self, cap_path: str) -> bool:
-        if not os.path.isfile(cap_path) or os.path.getsize(cap_path) < 300:
+        if not os.path.isfile(cap_path):
             return False
+
         try:
-            out = subprocess.check_output(["aircrack-ng", cap_path], stderr=subprocess.STDOUT, timeout=10).decode(errors="ignore")
-            return any(x in out.lower() for x in ["handshake", "1 handshake", "handshakes"])
+            out = subprocess.check_output(
+                ["aircrack-ng", cap_path],
+                stderr=subprocess.STDOUT,
+                timeout=10
+            ).decode(errors="ignore").lower()
+
+            # VALIDACIÓN 
+            if "1 handshake" in out or "2 handshake" in out:
+                return True
+
+            return False
+
         except Exception:
-            if cap_path.endswith((".22000", ".pcapng")):
-                return os.path.getsize(cap_path) > 100
             return False
 
     def _validate_and_save_capture(self, temp_cap_path: str, ssid: str, bssid: str) -> bool:
