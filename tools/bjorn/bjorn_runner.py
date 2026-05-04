@@ -104,7 +104,7 @@ class BjornRunner:
             time.sleep(2)
             return
 
-        options = ["SCAN_BJORN", "BORRAR", "BACK"]
+        options = ["SCAN_BJORN", "DELETE_ALL", "BACK"]
         position = 0
         last_pos = -1
 
@@ -123,7 +123,7 @@ class BjornRunner:
                     self._run_scan()
                     position = 0
                     last_pos = -1
-                elif choice == "BORRAR":
+                elif choice == "DELETE_ALL":
                     self._clear_reports()
                     position = 0
                     last_pos = -1
