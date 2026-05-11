@@ -10,7 +10,7 @@ app.secret_key = os.environ.get("BEETLE_SECRET") or "beetle-dev-secret"
 
 BASE_DIR = "/opt/beetle"
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
-CATEGORIES = ["wifi", "bt"]
+CATEGORIES = ["wifi", "bt", "beetlegotchi", "bjorn"]
 
 USER = "pi"
 PASS = "Beetle2580"
