@@ -6,11 +6,12 @@ from functools import wraps
 from urllib.parse import quote, unquote
 
 app = Flask(__name__)
+
 app.secret_key = os.environ.get("BEETLE_SECRET") or "beetle-dev-secret"
 
 BASE_DIR = "/opt/beetle"
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
-CATEGORIES = ["wifi", "bt", "beetlegotchi", "bjorn"]
+CATEGORIES = ["wifi", "bt", "beetlegotchi", "bjorn", "CamXploit"]
 
 USER = "pi"
 PASS = "Beetle2580"
@@ -579,7 +580,6 @@ def file_manager(subpath):
     # Obtener carpetas y archivos del directorio actual
     dirs, files = get_directory_content(real)
 
-    # Filtrar para que no se vean wifi y bt directamente desde la raíz (mantener comportamiento original)
     rel = os.path.relpath(real, BASE_DIR)
     if os.path.realpath(real).startswith(os.path.realpath(BASE_DIR)):
         def filter_hidden(x):
@@ -792,7 +792,7 @@ def fm_run():
 def assets(filename):
     assets_dir = os.path.join(BASE_DIR, 'assets')
     try:
-        # asegurar que no se salga del directorio assets
+      
         path = secure_join(assets_dir, filename)
     except ValueError:
         abort(404)
