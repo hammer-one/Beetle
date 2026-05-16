@@ -49,6 +49,12 @@ Es una herramienta **todo-en-uno**, compacta, fácil de usar y lista para llevar
 - Fuerza bruta de credenciales (SSH, FTP, formularios web…)
 - Reportes detallados y guardado de hallazgos
 
+### CamXploit
+- **Escaneo de puertos** Analiza puertos de red utilizados habitualmente por cámaras CCTV y dispositivos de streaming (como el \(80\), \(443\), \(554\), \(8080\) y \(8443\)).
+- **Detección de accesos** Identifica si hay páginas de inicio de sesión web expuestas y transmisiones en vivo abiertas al público.Identificación (Fingerprinting): Reconoce la marca, el modelo y el firmware del dispositivo para evaluar vulnerabilidades conocidas.
+- **Prueba de credenciales** Comprueba contraseñas predeterminadas de fábrica en los paneles de login inseguros.
+- **Geolocalización y OSINT** Proporciona datos de ubicación (ciudad, país, proveedor de Internet) y genera búsquedas automáticas en plataformas como Shodan o Google Dorking para un análisis más profundo.
+
 ### Bluetooth
 - **Deauth** (flood con l2ping)
 - **Advertise** (spoofing dinámico de nombres: Airpods, Galaxy Buds, etc.)
