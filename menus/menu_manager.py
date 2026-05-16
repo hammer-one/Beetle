@@ -11,19 +11,19 @@ from tools.wifi.pwnagotchi_runner import PwnagotchiRunner
 from menus.lan_menu import LanMenu                     
 from tools.wifi.lan_scanner import is_wifi_client_connected
 from tools.bjorn.bjorn_runner import BjornRunner
+from tools.CamXploit.CamXploit_runner import CamXploitRunner
 
 class MenuManager:
 
-    VISIBLE = 4  # número de líneas a mostrar
+    VISIBLE = 4 
 
     def __init__(self):
         self.position = 0
         self.display = MenuDisplay()
-        # Dibujo inicial (ya calcula opciones dinámicas)
+      
         self._render_window()
 
     def _get_current_options(self):
-        """Devuelve la lista de opciones. SCAN LAN aparece solo si está conectado como cliente."""
         options = ["WIFI", "BLUETOOTH", "BEETLEGOTCHI", "PWM_TEST", "CALCULATOR", "UTILITIES"]
         if is_wifi_client_connected():
           
@@ -31,19 +31,19 @@ class MenuManager:
                 wifi_idx = options.index("WIFI")
                 options.insert(wifi_idx + 1, "SCAN LAN")
                 options.insert(wifi_idx + 2, "BJORN")
+                options.insert(wifi_idx + 3, "CAMXPLOIT")
             except ValueError:
                 options.append("SCAN LAN")
                 options.append("BJORN")
+                options.append("CAMXPLOIT")
         return options
 
     def _render_window(self):
-        self.options = self._get_current_options()          # ← actualiza dinámicamente
+        self.options = self._get_current_options()        
 
-        # Evitamos que la posición quede inválida si se desconecta el WiFi
         if self.position >= len(self.options):
             self.position = 0
 
-        # calcula el inicio de la ventana scrollable
         start = min(
             max(self.position - (self.VISIBLE - 1), 0),
             len(self.options) - self.VISIBLE
@@ -74,6 +74,8 @@ class MenuManager:
                     BluetoothMenu().run()
                 elif choice == "BEETLEGOTCHI":
                     PwnagotchiRunner().run()
+                elif choice == "CAMXPLOIT":
+                    CamXploitRunner().run()
                 elif choice == "PWM_TEST":
                     PwmRunner().run()
                 elif choice == "CALCULATOR":
@@ -81,12 +83,10 @@ class MenuManager:
                 elif choice == "UTILITIES":
                     UtilsMenu().run()
 
-                # Al volver de cualquier submenú, volvemos al tope
                 self.position = 0
                 self.display.invalidate()
-                last_pos = -1  # forzar redraw
+                last_pos = -1  
 
-            # solo redraw si cambió la posición
             if self.position != last_pos:
                 self._render_window()
                 last_pos = self.position
