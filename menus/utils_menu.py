@@ -266,7 +266,7 @@ class UtilsMenu:
 
     def show_reports(self):
         base = "/opt/beetle/reports"
-        categories = ["wifi", "bt", "BACK"]
+        categories = ["wifi", "bt", "CamXploit", "BACK"]
         pos_cat = 0
         self.display.render(categories, pos_cat)
         last_pos = pos_cat
@@ -393,7 +393,7 @@ class UtilsMenu:
         self.clear_wps_sessions()
 
         base = "/opt/beetle/reports"
-        for folder in ["wifi", "bt"]:
+        for folder in ["wifi", "bt", "CamXploit"]:
             path = os.path.join(base, folder)
             if os.path.isdir(path):
                 for f in os.listdir(path):
@@ -733,7 +733,7 @@ network={{
             if current is None:
                 current = 128
 
-        self.display.show_message([f"BRIGHTNESS: {int(current*100/MAX)}%", "", "<UP/DOWN> -> Ajustar", "<ENTER> -> OK"], center=False)
+        self.display.show_message([f"BRIGHTNESS: {int(current*100/MAX)}%", "", "<UP/DOWN> -> Ajustar", "<ENTER> ----> OK"], center=False)
 
         last_shown = None
 
@@ -759,7 +759,7 @@ network={{
                 self._set_brightness_safe(current)
                 pct = int(current * 100 / MAX)
                 if pct != last_shown:
-                    self.display.show_message([f"BRIGHTNESS: {pct}%", "", "<UP/DOWN> -> Ajustar", "<ENTER> -> OK"], center=False)
+                    self.display.show_message([f"BRIGHTNESS: {pct}%", "", "<UP/DOWN> -> Ajustar", "<ENTER> ----> OK"], center=False)
                     last_shown = pct
 
             time.sleep(REPEAT_DELAY)
@@ -1046,4 +1046,5 @@ network={{
 if __name__ == "__main__":
     menu = UtilsMenu()
     menu.run()
+
 
