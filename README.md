@@ -26,7 +26,7 @@ Es una herramienta **todo-en-uno**, compacta, fácil de usar y lista para llevar
 - **CAMXPLOIT**- Es una herramienta de hacking/pentesting para buscar cámaras IP vulnerables o mal configuradas en internet. Puede detectar accesos abiertos, credenciales por defecto y streams de video expuestos para auditorías de seguridad autorizadas.
 - **BLUETOOTH** — Escaneo y ejecución de ataques sobre dispositivos Bluetooth. ⚠️ Nota: El Bluetooth interno de la Raspberry Pi no es compatible con este kernel para estas funciones. Se recomienda utilizar un adaptador USB Bluetooth v4.0 o v4.1, ya que versiones superiores (v4.2/5.0+) no son soportadas.
 
-- **BEETLEGOTCHI** — Modo inspirado en Pwnagotchi con caras animadas
+- **BEETLEGOTCHI** — Modo inspirado en Pwnagotchi con caras animadas, función de colaboracion con wap-sec para subir los handshakes capturados, se necesita configurar la key API.
 - **PWM_TEST** - Genera una señal pwm  en GPIO-18 de 10hz hasta 2khz, seleccione entre PWM y ESC( para variadores de motores Brushlees)
 - **CALCULATOR** — Calculadora con teclado numérico en pantalla (el menu esta oculto, mantener presionado el boton "enter" para activarlo.)
 - **UTILITIES** — Herramientas de sistema
