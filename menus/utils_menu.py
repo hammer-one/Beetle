@@ -393,7 +393,7 @@ class UtilsMenu:
         self.clear_wps_sessions()
 
         base = "/opt/beetle/reports"
-        for folder in ["wifi", "bt", "CamXploit"]:
+        for folder in ["wifi", "bt", "CamXploit", "/opt/beetle/tools/bt/state", "/var/log", "/var/run/NetworkManager/devices"]:
             path = os.path.join(base, folder)
             if os.path.isdir(path):
                 for f in os.listdir(path):
@@ -1042,9 +1042,5 @@ network={{
                         time.sleep(REPEAT_DELAY)
 
             time.sleep(REPEAT_DELAY)
-
-if __name__ == "__main__":
     menu = UtilsMenu()
     menu.run()
-
-
