@@ -224,6 +224,22 @@ class UtilsMenu:
         except Exception:
             return None
 
+    def get_current_wifi_ssid(self) -> Optional[str]:
+           
+        try:
+            result = subprocess.run(
+                ["iwgetid", "-r", "wlan0"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True
+            )
+
+            ssid = result.stdout.strip()
+            return ssid if ssid else None
+
+        except Exception:
+            return None
+
     def start_http_server(self):
         reports_dir = "/opt/beetle/reports"
         os.makedirs(reports_dir, exist_ok=True)
@@ -421,6 +437,13 @@ class UtilsMenu:
 
     # --- WIFI SET + TEXT INPUT ---
     def wifi_set(self):
+
+        # Mostrar la red actual únicamente si existe conexión
+        ssid = self.get_current_wifi_ssid()
+        if ssid:
+            self.display.show_message([ssid], center=True)
+            time.sleep(2)
+
         opts = ["SCAN", "MANUAL", "RESET", "BACK"]
         pos = 0
         last = -1
@@ -1042,5 +1065,4 @@ network={{
                         time.sleep(REPEAT_DELAY)
 
             time.sleep(REPEAT_DELAY)
-    menu = UtilsMenu()
-    menu.run()
+
