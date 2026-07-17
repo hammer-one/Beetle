@@ -157,7 +157,7 @@ class HydraRunner:
                         time.sleep(1.5)
                         return report_file
           
-            self.display.show_message(["Sin Credenciales", service.upper()], center=True)
+            self.display.show_message(["Ver Reportes...", service.upper()], center=True)
             time.sleep(1.5)
             return report_file
           
