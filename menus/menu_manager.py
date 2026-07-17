@@ -12,6 +12,7 @@ from menus.lan_menu import LanMenu
 from tools.wifi.lan_scanner import is_wifi_client_connected
 from tools.bjorn.bjorn_runner import BjornRunner
 from tools.CamXploit.CamXploit_runner import CamXploitRunner
+from tools.hydra.hydra_runner import HydraRunner
 
 class MenuManager:
 
@@ -32,10 +33,12 @@ class MenuManager:
                 options.insert(wifi_idx + 1, "SCAN LAN")
                 options.insert(wifi_idx + 2, "BJORN")
                 options.insert(wifi_idx + 3, "CAMXPLOIT")
+                options.insert(wifi_idx + 4, "BRUTE_FORCE_HYDRA")
             except ValueError:
                 options.append("SCAN LAN")
                 options.append("BJORN")
                 options.append("CAMXPLOIT")
+                options.append("BRUTE_FORCE_HYDRA")
         return options
 
     def _render_window(self):
@@ -76,6 +79,10 @@ class MenuManager:
                     PwnagotchiRunner().run()
                 elif choice == "CAMXPLOIT":
                     CamXploitRunner().run()
+                elif choice == "BRUTE_FORCE_HYDRA":
+                    HydraRunner().run()
+                elif choice == "WEB_SCANNER":         
+                    WebScannerRunner().run()
                 elif choice == "PWM_TEST":
                     PwmRunner().run()
                 elif choice == "CALCULATOR":
