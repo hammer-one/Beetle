@@ -409,7 +409,7 @@ class UtilsMenu:
         self.clear_wps_sessions()
 
         base = "/opt/beetle/reports"
-        for folder in ["wifi", "bt", "CamXploit", "/opt/beetle/tools/bt/state", "/var/log", "/var/run/NetworkManager/devices"]:
+        for folder in ["wifi", "bt", "CamXploit", "hydra", "/opt/beetle/tools/bt/state", "/var/log", "/var/run/NetworkManager/devices"]:
             path = os.path.join(base, folder)
             if os.path.isdir(path):
                 for f in os.listdir(path):
