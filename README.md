@@ -23,12 +23,13 @@ Es una herramienta **todo-en-uno**, compacta, fácil de usar y lista para llevar
 - **WIFI** — Escaneo de redes + submenú de ataques
 - **SCAN LAN** (solo si estás conectado como cliente WiFi)
 - **BJORN** — Escáner avanzado de vulnerabilidades en la LAN (solo si estás conectado como cliente WiFi)
-- **CAMXPLOIT**- Es una herramienta de hacking/pentesting para buscar cámaras IP vulnerables o mal configuradas en internet. Puede detectar accesos abiertos, credenciales por defecto y streams de video expuestos para auditorías de seguridad autorizadas.
-- **BLUETOOTH** — Escaneo y ejecución de ataques sobre dispositivos Bluetooth. ⚠️ Nota: El Bluetooth interno de la Raspberry Pi no es compatible con este kernel para estas funciones. Se recomienda utilizar un adaptador USB Bluetooth v4.0 o v4.1, ya que versiones superiores (v4.2/5.0+) no son soportadas.
+- **CAMXPLOIT**- Es una herramienta de hacking/pentesting para buscar cámaras IP vulnerables o mal configuradas en internet.                Puede detectar accesos abiertos, credenciales por defecto y streams de video expuestos para auditorías de                    seguridad autorizadas.
+- **BRUTE_FORCE_HYDRA**- Es una herramienta para pruebas de fuerza bruta en protocolos ftp, smb, smtp, ssh, etc.
+- **BLUETOOTH** — Escaneo y ejecución de ataques sobre dispositivos Bluetooth. ⚠️ Nota: El Bluetooth interno de la Raspberry                Pi con este kernel puede ser inestable en algunas versiones para estas funciones, se recomienda utilizar un                  adaptador USB Bluetooth v4.0 o v4.1, ya que versiones superiores (v4.2/5.0+) no son soportadas.
 
 - **BEETLEGOTCHI** — Modo inspirado en Pwnagotchi con caras animadas.
-- **PWM_TEST** - Genera una señal pwm  en GPIO-18 de 10hz hasta 2khz, seleccione entre PWM y ESC( para variadores de motores Brushlees)
-- **CALCULATOR** — Calculadora con teclado numérico en pantalla (el menu esta oculto, mantener presionado el boton "enter" para activarlo.)
+- **PWM_TEST** - Genera una señal pwm  en GPIO-18 de 10hz hasta 2khz, seleccione entre PWM y ESC( para variadores de motores                Brushlees)
+- **CALCULATOR** — Calculadora con teclado numérico en pantalla (el menu esta oculto, mantener presionado el boton "enter"                    para activarlo.)
 - **UTILITIES** — Herramientas de sistema
 
 ### Ataques WiFi (menú WIFI)
