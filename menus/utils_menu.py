@@ -21,7 +21,7 @@ class UtilsMenu:
     USB_IFACE = "usb0"
     USB_IP = "10.0.0.2/24"
 
-    # Umbrales para diferenciar tap / hold y repetición de hold
+  
     HOLD_THRESHOLD = 0.35  # segundos para considerar "hold"
     HOLD_REPEAT = 0.03     # intervalo entre pasos mientras se mantiene
 
@@ -42,13 +42,13 @@ class UtilsMenu:
         self.position = 0
         self.http_process = None
 
-        # Cargar brillo persistente al iniciar 
+    
         try:
             b = self.load_brightness()
             if b is None:
-                # valor por defecto 50% (128)
+          
                 b = 128
-            # aplicar valor al display al iniciar
+        
             try:
                 self.display.set_brightness(b)
             except Exception:
@@ -76,11 +76,11 @@ class UtilsMenu:
         if hold_threshold is None:
             hold_threshold = self.HOLD_THRESHOLD
         t0 = time.time()
-        # Si el botón ya estaba presionado, esperamos a su liberación o threshold
+     
         while True:
             b = read_buttons()
             if not b.get(button_key, False):
-                # si fue lanzado rápidamente antes de threshold -> tap
+         
                 return "tap"
             if time.time() - t0 >= hold_threshold:
                 return "hold"
@@ -173,8 +173,11 @@ class UtilsMenu:
                     self._usb_start()
                 elif sel == "STOP":
                     self._usb_stop()
+                    return
                 elif sel == "BACK":
                     return
+                while read_buttons().get("enter", False):
+                    time.sleep(0.01)
 
             time.sleep(REPEAT_DELAY)
 
@@ -184,14 +187,12 @@ class UtilsMenu:
             subprocess.run(["sudo", "ip", "addr", "flush", "dev", self.USB_IFACE], check=False)
             subprocess.run(["sudo", "ip", "addr", "add", self.USB_IP, "dev", self.USB_IFACE], check=False)
             self._restart_network_service()
-            self.display.show_message(
-                ["USB ACTIVO", "IP 10.0.0.2", "Masc 255.255.255.0"],
-                center=True
-            )
-            time.sleep(2)
+            self.display.show_message(["USB ACTIVO", "IP 10.0.0.2", "Masc 255.255.255.0"], center=True)
+            time.sleep(5)
+            self.display.render(["START", "STOP", "BACK"], 0)
         except Exception as e:
             self.display.show_message(["Error USB", str(e)], center=True)
-            time.sleep(2)
+            time.sleep(1.5)
 
     def _usb_stop(self):
         try:
@@ -202,7 +203,8 @@ class UtilsMenu:
             time.sleep(2)
         except Exception as e:
             self.display.show_message([" Error USB ", str(e)], center=True)
-            time.sleep(2)
+            time.sleep(1.5)
+            return
 
     def _restart_network_service(self):
         subprocess.run(
@@ -282,28 +284,42 @@ class UtilsMenu:
 
     def show_reports(self):
         base = "/opt/beetle/reports"
-        categories = ["wifi", "bt", "CamXploit", "BACK"]
-        pos_cat = 0
-        self.display.render(categories, pos_cat)
-        last_pos = pos_cat
+        categories = ["wifi", "bt", "CamXploit", "hydra", "BACK"]
+        
+        pos = 0
+        last_pos = -1
+        VISIBLE = 4  
 
         while True:
+            if pos != last_pos:
+                if len(categories) <= VISIBLE:
+                    window = categories
+                    local_pos = pos
+                else:
+                    start = min(
+                        max(pos - (VISIBLE - 1), 0),
+                        len(categories) - VISIBLE
+                    )
+                    window = categories[start:start + VISIBLE]
+                    local_pos = pos - start
+
+                self.display.render(window, local_pos)
+                last_pos = pos
+
             buttons = read_buttons()
             if buttons["up"]:
-                pos_cat = (pos_cat - 1) % len(categories)
+                pos = (pos - 1) % len(categories)
             elif buttons["down"]:
-                pos_cat = (pos_cat + 1) % len(categories)
+                pos = (pos + 1) % len(categories)
             elif buttons["enter"]:
-                if categories[pos_cat] == "BACK":
+                choice = categories[pos]
+                if choice == "BACK":
                     return
                 else:
-                    self.show_reports_in_category(os.path.join(base, categories[pos_cat]))
-                    pos_cat = 0
+                    folder_path = os.path.join(base, choice)
+                    self.show_reports_in_category(folder_path)
+                    pos = 0
                     last_pos = -1
-
-            if pos_cat != last_pos:
-                self.display.render(categories, pos_cat)
-                last_pos = pos_cat
 
             time.sleep(REPEAT_DELAY)
 
@@ -324,19 +340,23 @@ class UtilsMenu:
         files.append("BACK")
 
         pos = 0
-        window_start = 0
         last_pos = -1
+        VISIBLE = 4
 
         while True:
             if pos != last_pos:
-                if pos < window_start:
-                    window_start = pos
-                elif pos >= window_start + self.PAGE_SIZE:
-                    window_start = pos - (self.PAGE_SIZE - 1)
+                if len(files) <= VISIBLE:
+                    window = files
+                    local_pos = pos
+                else:
+                    start = min(
+                        max(pos - (VISIBLE - 1), 0),
+                        len(files) - VISIBLE
+                    )
+                    window = files[start:start + VISIBLE]
+                    local_pos = pos - start
 
-                page = files[window_start:window_start + self.PAGE_SIZE]
-                rel_idx = pos - window_start
-                self.display.render(page, rel_idx)
+                self.display.render(window, local_pos)
                 last_pos = pos
 
             buttons = read_buttons()
@@ -348,11 +368,10 @@ class UtilsMenu:
                 if files[pos] == "BACK":
                     return
                 else:
-                    path = os.path.join(folder_path, files[pos])
-                    self.paginated_display_file(path)
+                    filepath = os.path.join(folder_path, files[pos])
+                    self.paginated_display_file(filepath)
                     pos = 0
-                    window_start = 0
-                    last_pos = -1  # for refresh
+                    last_pos = -1
 
             time.sleep(REPEAT_DELAY)
 
@@ -438,7 +457,7 @@ class UtilsMenu:
     # --- WIFI SET + TEXT INPUT ---
     def wifi_set(self):
 
-        # Mostrar la red actual únicamente si existe conexión
+        
         ssid = self.get_current_wifi_ssid()
         if ssid:
             self.display.show_message([ssid], center=True)
@@ -480,6 +499,7 @@ class UtilsMenu:
                     self.write_wpa("BEETLE", "beetle1234")
                     self.display.show_message(["Red: BEETLE ", " Pass:beetle1234 "], center=True)
                     time.sleep(2)
+                    return
                 elif sel == "BACK":
                        return
             time.sleep(REPEAT_DELAY)
@@ -563,7 +583,7 @@ class UtilsMenu:
 
             btn = read_buttons()
 
-            # -------- DOWN --------
+         
             if btn["down"]:
                 t0 = time.time()
                 while read_buttons()["down"]:
@@ -579,7 +599,7 @@ class UtilsMenu:
                     y = (y + 1) % rows
                     last_state = None
 
-            # -------- UP --------
+            
             elif btn["up"]:
                 t0 = time.time()
                 while read_buttons()["up"]:
@@ -595,29 +615,29 @@ class UtilsMenu:
                     x = (x + 1) % cols
                     last_state = None
 
-            # -------- ENTER --------
+         
             elif btn["enter"]:
                 key = keyboard[y][x]
 
                 if key == "":
                     continue
 
-                # -------- BORRAR --------
+           
                 if key == "<":
                     buffer = buffer[:-1]
 
-                # -------- OK --------
+             
                 elif key == "OK":
                     return buffer
 
-                # -------- ESPACIO --------
+              
                 elif key == "_":
                     buffer += " "
 
-                # -------- LETRAS --------
+              
                 elif key.isalpha():
 
-                    # caso especial Ñ
+                    
                     if key == "n":
                         opts = ["n","N","ñ","Ñ","CANCEL"]
                     else:
@@ -644,11 +664,11 @@ class UtilsMenu:
 
                         time.sleep(REPEAT_DELAY)
 
-                    # consumir enter
+                  
                     while read_buttons()["enter"]:
                         time.sleep(0.01)
 
-                # -------- OTROS --------
+              
                 else:
                     buffer += key
                     while read_buttons()["enter"]:
@@ -899,10 +919,7 @@ network={{
     #   LETTTERS / FONT MANAGEMENT
     # -----------------------------
     def _scan_fonts_recursive(self):
-        """
-        Recorre SOURCES_DIR recursivamente y devuelve lista de rutas
-        de fuentes válidas (ttf, otf, pil, pbm).
-        """
+       
         exts = (".ttf", ".otf", ".pil", ".pbm")
         found = []
         base = self.SOURCES_DIR
@@ -916,9 +933,7 @@ network={{
         return found
 
     def _load_letters_config(self):
-        """
-        Lee /opt/beetle/config/letters.cfg y devuelve (path, size) o (None, None)
-        """
+        
         try:
             if not os.path.isfile(self.LETTERS_CONFIG):
                 return (None, None)
@@ -955,33 +970,24 @@ network={{
             return False
 
     def letters(self):
-        """
-        Interfaz para seleccionar fuente y tamaño:
-        - Recorre SOURCES_DIR recursivamente
-        - UP/DOWN: navegar fuentes
-        - ENTER: confirmar fuente -> abrir selector tamaño
-        - En selector tamaño: UP/DOWN cambian tamaño (paso FONT_STEP)
-          ENTER confirma y guarda (se aplica a toda la UI)
-        """
+        
         fonts = self._scan_fonts_recursive()
         if not fonts:
             self.display.show_message(["No hay fuentes en", self.SOURCES_DIR], center=True)
             time.sleep(2)
             return
 
-        # añadimos opción BACK al final
         fonts.append("BACK")
 
         pos = 0
         window_start = 0
         last_pos = -1
 
-        # preview text
         preview_lines = ["Prueba: Beetle", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0123456789"]
 
         while True:
             if pos != last_pos:
-                # paginar
+             
                 if pos < window_start:
                     window_start = pos
                 elif pos >= window_start + self.PAGE_SIZE:
@@ -989,7 +995,6 @@ network={{
 
                 page = fonts[window_start:window_start + self.PAGE_SIZE]
                 rel_idx = pos - window_start
-                # mostrar nombres de archivo (solo basename)
                 to_show = [os.path.basename(x) if x != "BACK" else "BACK" for x in page]
                 self.display.render(to_show, rel_idx)
                 last_pos = pos
@@ -1004,9 +1009,9 @@ network={{
                 if choice == "BACK":
                     return
                 else:
-                    # previsualizar la fuente seleccionada en vivo
+                
                     sel_font_path = choice
-                    # intentar aplicar con tamaño guardado o default
+                
                     _, saved_size = self._load_letters_config()
                     if saved_size is None:
                         saved_size = 12
@@ -1015,7 +1020,6 @@ network={{
                     except Exception:
                         pass
 
-                    # ahora selector de tamaño
                     size = saved_size
                     size = max(self.FONT_MIN, min(self.FONT_MAX, size))
                     last_size_shown = None
@@ -1033,9 +1037,9 @@ network={{
                             size = max(self.FONT_MIN, size - self.FONT_STEP)
                             changed = True
                         elif b2["enter"]:
-                            # confirmar: guardar config y aplicar
+                      
                             try:
-                                # aplicar y guardar via display API
+                       
                                 self.display.set_font(sel_font_path, size)
                                 self.display.save_font(sel_font_path, size)
                             except Exception:
@@ -1046,18 +1050,18 @@ network={{
                             except Exception:
                                 pass
 
-                            # aviso breve
+     
                             self.display.show_message(["Fuente guardada.", os.path.basename(sel_font_path), f"Tamaño {size}"], center=True)
                             time.sleep(1.2)
                             return
 
                         if changed:
-                            # aplicar preview en vivo
+      
                             try:
                                 self.display.set_font(sel_font_path, size)
                             except Exception:
                                 pass
-                            # mostrar info si cambió el tamaño
+            
                             if size != last_size_shown:
                                 self.display.show_message([f"Fuente: {os.path.basename(sel_font_path)}", f"Tamaño: {size}", "", "<UP/DOWN> -> Tamaño", "<ENTER> -> OK"], center=False)
                                 last_size_shown = size
@@ -1065,4 +1069,3 @@ network={{
                         time.sleep(REPEAT_DELAY)
 
             time.sleep(REPEAT_DELAY)
-
