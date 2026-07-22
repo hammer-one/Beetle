@@ -760,6 +760,7 @@ network={{
             subprocess.run(["sudo", "wpa_cli", "-i", "wlan0", "reconfigure"])
             self.display.show_message(["   Listo.   "], center=True)
             time.sleep(2)
+            self.display.render(["SCAN", "MANUAL", "RESET", "BACK"], 0)
         except Exception as e:
             self.display.show_message(["Error WiFi", str(e)], center=True)
             time.sleep(2)
