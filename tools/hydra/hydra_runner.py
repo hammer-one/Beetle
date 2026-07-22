@@ -88,6 +88,43 @@ class HydraRunner:
             time.sleep(1.5)
             return []
 
+    def _wrap_text(self, text: str, width: int = 20) -> str:
+        lines = []
+        for paragraph in text.split('\n'):
+            if not paragraph.strip():
+                lines.append('')
+                continue
+                
+            words = paragraph.split()
+            if not words:
+                continue
+                
+            current_line = words[0]
+            for word in words[1:]:
+                if len(current_line) + len(word) + 1 <= width:
+                    current_line += ' ' + word
+                else:
+                    lines.append(current_line)
+                    current_line = word
+            lines.append(current_line)
+        return '\n'.join(lines)
+
+    def _format_report_file(self, report_file: str):
+        if not os.path.exists(report_file):
+            return
+            
+        try:
+            with open(report_file, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+            
+            formatted = self._wrap_text(content, width=20)
+            
+            with open(report_file, "w", encoding="utf-8") as f:
+                f.write(formatted)
+                
+        except Exception as e:
+            print(f"Error formateando reporte: {e}")
+
     def _run_hydra(self, target_ip: str, service: str, port: str):
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         report_file = os.path.join(self.report_dir, f"hydra_{service}_{target_ip}_{timestamp}.txt")
@@ -97,7 +134,7 @@ class HydraRunner:
 
         cmd = [
             "sudo", "hydra", "-L", self.wordlist_user, "-P", self.wordlist_pass,
-            "-t", "6", "-vV", "-o", report_file, target_ip, service
+            "-t", "6", "-vV", "-f", "-o", report_file, target_ip, service
         ]
         if port and port != "default":
             cmd.extend(["-s", port])
@@ -138,7 +175,7 @@ class HydraRunner:
                 match = self.success_pattern.search(stripped)
                 if match or any(x in lower for x in ["[+]", "password found", "successful login"]):
                     user = match.group(1) if match else "Encontrado"
-                    self.display.show_message(["¡SUCCESSFUL!", f"{service.upper()}"], center=True)
+                    self.display.show_message(["¡SUCCESS!", f"{service.upper()}"], center=True)
                     time.sleep(1.8)
                     success_found = True
                     try:
@@ -158,15 +195,18 @@ class HydraRunner:
                 except:
                     proc.kill()
 
-            if os.path.exists(report_file) and os.path.getsize(report_file) > 100:
+            if os.path.exists(report_file):
+                self._format_report_file(report_file)
+
+            if os.path.getsize(report_file) > 100:
                 with open(report_file, "r", encoding="utf-8", errors="ignore") as f:
                     content = f.read()
                     if self.success_pattern.search(content) or "[+]" in content:
-                        self.display.show_message(["¡ÉXITO!", service.upper()], center=True)
+                        self.display.show_message(["¡EXITOS!"], center=True)
                         time.sleep(1.8)
                         return report_file
 
-            self.display.show_message(["Sin resultado", service.upper()], center=True)
+            self.display.show_message(["Ver Reportes..."], center=True)
             time.sleep(1.5)
             return report_file
          
@@ -179,7 +219,7 @@ class HydraRunner:
                 try:
                     os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                 except:
-                    pass
+                    pass 
 
     def run(self):
         if not is_wifi_client_connected():
