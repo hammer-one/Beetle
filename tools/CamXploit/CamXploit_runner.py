@@ -4,6 +4,7 @@ import subprocess
 import os
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
+from keyboard.numeric_input import NumericKeyboard
 
 class CamXploitRunner:
     def __init__(self):
@@ -15,13 +16,15 @@ class CamXploitRunner:
         time.sleep(1)
 
         self.display.show_message([" Ingrese IP ", " (o IP:PUERTO) "], center=True)
-        time.sleep(1.5)
+        time.sleep(2)
         
-        ip = self.qwerty_input("IP")
+        kb = NumericKeyboard()
+        ip = kb.input_ip_port("IP")
+
         if not ip or ip.strip() == "":
             self.display.show_message([" Cancelado "], center=True)
-            time.sleep(1)
-            return
+            time.sleep(1.5)
+            return           
 
         self.display.show_message([f" Escaneando: ", ip[:16]], center=True)
         time.sleep(1)
