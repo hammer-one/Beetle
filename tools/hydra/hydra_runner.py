@@ -8,6 +8,7 @@ import signal
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
 from tools.wifi.lan_scanner import is_wifi_client_connected
+from keyboard.numeric_input import NumericKeyboard
 
 
 class HydraRunner:
@@ -27,9 +28,8 @@ class HydraRunner:
         self.display.show_message(["Ingresa IP", "Objetivo:"], center=True)
         time.sleep(1.5)
      
-        from menus.utils_menu import UtilsMenu
-        utils = UtilsMenu()
-        ip = utils.qwerty_input("IP")
+        kb = NumericKeyboard()
+        ip = kb.input_ip_port("IP")
         return ip.strip() if ip and ip.strip() else None
 
     def _scan_services(self, target_ip: str):
@@ -246,4 +246,3 @@ class HydraRunner:
             self._run_hydra(target_ip, service, port)
         self.display.show_message(["HYDRA", "FINALIZADO"], center=True)
         time.sleep(1.5)
-        
