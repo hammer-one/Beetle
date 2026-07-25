@@ -43,8 +43,9 @@ class ReportManager:
                     return
                 folder_path = os.path.join(self.base, choice)
                 self.show_reports_in_category(folder_path)
-                pos = 0
+           
                 last_pos = -1
+                self.display.invalidate()
             time.sleep(REPEAT_DELAY)
 
     def show_reports_in_category(self, folder_path):
@@ -61,6 +62,7 @@ class ReportManager:
 
         files.sort()
         files.append("BACK")
+        
         pos = 0
         last_pos = -1
         VISIBLE = 4
@@ -82,8 +84,9 @@ class ReportManager:
                     return
                 filepath = os.path.join(folder_path, files[pos])
                 self.paginated_display_file(filepath)
-                pos = 0
+                
                 last_pos = -1
+    
             time.sleep(REPEAT_DELAY)
 
     def paginated_display_file(self, filepath):
