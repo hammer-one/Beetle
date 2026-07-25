@@ -1,4 +1,5 @@
 # /opt/beetle/menus/lan_menu.py
+
 import time
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
@@ -13,11 +14,11 @@ VISIBLE_LINES = 4
 class LanMenu:
     def __init__(self):
         self.display = MenuDisplay()
-        self.devices = []   # lista de tuplas (name, ip, mac, vendor)
+        self.devices = [] 
         self.position = 0
 
     def run(self):
-        # Seguridad extra: aunque el menú solo aparece cuando está conectado
+    
         if not is_wifi_client_connected():
             self.display.show_message(["No conectado a", "WiFi como cliente"], center=True)
             time.sleep(2)
@@ -31,7 +32,7 @@ class LanMenu:
             time.sleep(2)
             return
 
-        # Opciones del listado principal
+
         options = [f"{name} ({ip})" for name, ip, _, _ in self.devices]
         options.append("BACK")
 
@@ -47,15 +48,14 @@ class LanMenu:
             elif buttons["down"]:
                 self.position = (self.position + 1) % len(options)
             elif buttons["enter"]:
-                if self.position == len(options) - 1:  # BACK
+                if self.position == len(options) - 1: 
                     return
-                # Entrar en detalle del dispositivo
+
                 device = self.devices[self.position]
                 self._device_detail(device)
-                # Al volver del detalle, reseteamos posición
-                self.position = 0
-                scroll_offset = 0
+   
                 last_pos = -1
+                self.display.invalidate()
 
             if self.position != last_pos:
                 scroll_offset = max(0, self.position - VISIBLE_LINES + 1)
@@ -68,7 +68,7 @@ class LanMenu:
             time.sleep(REPEAT_DELAY)
 
     def _device_detail(self, device):
-        """Muestra detalle completo (MAC, fabricante, puertos abiertos)"""
+     
         name, ip, mac, vendor = device
 
         self.display.show_message(["Escaneando detalle...", ip], center=True)
@@ -76,7 +76,7 @@ class LanMenu:
 
         ports = get_open_ports(ip)
 
-        # Preparar líneas para mostrar (OLED pequeño)
+    
         port_str = ", ".join(ports[:6]) if ports else "Ninguno"
         if len(ports) > 6:
             port_str += f" +{len(ports)-6}"
@@ -89,11 +89,11 @@ class LanMenu:
         ]
 
         
-        # Mostrar solo UNA vez y luego solo leer botones
+   
         self.display.show_message(lines, center=False)
 
         while True:
             buttons = read_buttons()
             if buttons["enter"]:
-                return  # volver al listado
+                return  
             time.sleep(REPEAT_DELAY)
