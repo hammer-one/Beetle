@@ -1,4 +1,5 @@
 # /opt/beetle/menus/utils_menu.py
+
 import time
 import os
 import shutil
@@ -178,7 +179,7 @@ class UtilsMenu:
                 elif choice == "BACK":
                     return
 
-                self.position = 0
+                last_pos = -1
                 last_pos = self.position
                 self._render_page()
                 continue
