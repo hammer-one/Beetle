@@ -1,4 +1,5 @@
 # /opt/beetle/menus/menu_manager.py
+
 import time
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
@@ -34,11 +35,13 @@ class MenuManager:
                 options.insert(wifi_idx + 2, "BJORN")
                 options.insert(wifi_idx + 3, "CAMXPLOIT")
                 options.insert(wifi_idx + 4, "BRUTE_FORCE_HYDRA")
+ 
             except ValueError:
                 options.append("SCAN LAN")
                 options.append("BJORN")
                 options.append("CAMXPLOIT")
                 options.append("BRUTE_FORCE_HYDRA")
+              
         return options
 
     def _render_window(self):
@@ -90,7 +93,6 @@ class MenuManager:
                 elif choice == "UTILITIES":
                     UtilsMenu().run()
 
-                self.position = 0
                 self.display.invalidate()
                 last_pos = -1  
 
