@@ -809,20 +809,12 @@ class PwnagotchiRunner:
                     run_wpa_sec_upload()
                 elif choice == "DELETE_ALL":
                     self._borrar_menu()
-                position = 0
+      
                 last_pos = -1
+                self.display.invalidate()
             if position != last_pos:
                 start = max(0, position - (VISIBLE_LINES - 1))
                 window = options[start:start + VISIBLE_LINES]
                 self.display.render(window, position - start)
                 last_pos = position
             time.sleep(REPEAT_DELAY)
-
-
-if __name__ == "__main__":
-    try:
-        PwnagotchiRunner().run()
-    except KeyboardInterrupt:
-        print("\nBeetlegotchi terminado por el usuario.")
-    except Exception as e:
-        print(f"Error inesperado: {e}")
