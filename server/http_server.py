@@ -1,6 +1,5 @@
 # /opt/beetle/server/http_server.py
 
-
 import shutil
 import socket
 import subprocess
@@ -23,7 +22,7 @@ class HttpServerManager:
             os.makedirs(reports_dir, exist_ok=True)
             if not self.http_process or self.http_process.poll() is not None:
                 self.http_process = subprocess.Popen(
-                    ["python3", "/opt/beetle/web/web_report_server.py"],
+                    ["python3", "/opt/beetle/server/web/web_report_server.py"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
@@ -49,7 +48,7 @@ class HttpServerManager:
             ip_text = "Sin conexión"
 
         self.display.show_message(
-            ["Accede por red a:", ip_text, "", "<ENTER> ---> Salir"],
+            ["Accede por red a:", ip_text, "", "<ENTER> ----> Salir"],
             center=False
         )
 
