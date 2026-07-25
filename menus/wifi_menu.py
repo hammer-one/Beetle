@@ -14,12 +14,12 @@ from tools.wifi.aireplay_runner import run_aireplay
 from tools.wifi.hcxtools_runner import run_hcxtools
 
 
-VISIBLE_LINES = 4  # cantidad de líneas visibles en el OLED
+VISIBLE_LINES = 4 
 
 class WifiMenu:
     def __init__(self):
         self.display = MenuDisplay()
-        self.networks = []   # lista de tuplas (ssid, bssid, channel)
+        self.networks = []  
         self.position = 0
 
     def run(self):
@@ -44,12 +44,10 @@ class WifiMenu:
                 self.position = (self.position + 1) % len(options)
             elif buttons["enter"]:
                 if self.position == len(options) - 1:
-                    return  # VOLVER
+                    return 
                 ssid, bssid, channel = self.networks[self.position]
                 self.tool_submenu(ssid, bssid, channel)
-                # Al volver, reiniciamos posición para no quedarse en un valor inválido
-                self.position = 0
-                scroll_offset = 0
+              
                 last_pos = -1
 
             if self.position != last_pos:
@@ -61,18 +59,13 @@ class WifiMenu:
             time.sleep(REPEAT_DELAY)
 
     def tool_submenu(self, ssid, bssid, channel):
-        """
-        Al seleccionar una red, primero intentamos contar clientes. Si count=0,
-        mostramos "No hay clientes" 2s. Si count>0, mostramos "Clientes: X" 4s.
-        Luego desplegamos el menú de herramientas.
-        """
-        # Mostrar título de la red (max 12 caracteres)
-        title = ssid if len(ssid) <= 12 else ssid[:12] + "..."
-        self.display.show_message([f"Red: {title}", "", ""], center=False)
-        time.sleep(0.5)
+        
+        title = ssid if len(ssid) <= 20 else ssid[:20]
+        self.display.show_message(["Red:", f"{title}"], center=True)
+        time.sleep(0.8)
 
       
-        self.display.show_message(["Buscando Clientes...", ""], center=True)
+        self.display.show_message(["Buscando Clientes..."], center=True)
         try:
             chan_int = int(channel)
         except:
@@ -86,18 +79,15 @@ class WifiMenu:
             count = 0
 
         if count == 0:
-            # No hay clientes: mensaje breve
             self.display.show_message(["No hay Clientes"], center=True)
             time.sleep(2)
             return
 
         else:
-            # Hay x clientes: mostrar 4s
-            self.display.show_message([f"Clientes: {count}", ""], center=True)
-            time.sleep(4)
-        # -------------------------------------------------------
+            self.display.show_message(["Clientes:", f"{count}"], center=True)
+            time.sleep(3)
+     
 
-        # construimos el menú de herramientas
         tools = ["CAPTURE_CLON", "CAPTURE_AIREPLAY", "CAPTURE_MDK4", "CAPTURE_HCXTOOLS", "BULLY", "REAVER", "CRACK_PASS", "BACK"]
         pos = 0
         scroll_offset = 0
@@ -115,8 +105,7 @@ class WifiMenu:
                     return
                 elif choice == "CAPTURE_CLON":
                     run_eviltwin(ssid, bssid, channel)
-                    pos = 0
-                    scroll_offset = 0
+ 
                     last_pos = -1
                     self.display.invalidate()
                     self.display.render(
@@ -125,8 +114,7 @@ class WifiMenu:
                     )
                 elif choice == "BULLY":
                     run_bully(ssid, bssid, channel)
-                    pos = 0
-                    scroll_offset = 0
+    
                     last_pos = -1
                     self.display.invalidate()
                     self.display.render(
@@ -135,8 +123,7 @@ class WifiMenu:
                     )
                 elif choice == "CAPTURE_MDK4":
                     run_mdk4(ssid, bssid, channel)
-                    pos = 0
-                    scroll_offset = 0
+ 
                     last_pos = -1
                     self.display.invalidate()
                     self.display.render(
@@ -145,8 +132,7 @@ class WifiMenu:
                     )
                 elif choice == "REAVER":
                     run_reaver(ssid, bssid, channel)
-                    pos = 0
-                    scroll_offset = 0
+  
                     last_pos = -1
                     self.display.invalidate()
                     self.display.render(
@@ -155,8 +141,7 @@ class WifiMenu:
                     )
                 elif choice == "CRACK_PASS":
                     run_aircrack(ssid, bssid, channel)
-                    pos = 0
-                    scroll_offset = 0
+   
                     last_pos = -1
                     self.display.invalidate()
                     self.display.render(
@@ -165,8 +150,7 @@ class WifiMenu:
                     )
                 elif choice == "CAPTURE_AIREPLAY":
                     run_aireplay(ssid, bssid, channel)
-                    pos = 0
-                    scroll_offset = 0
+  
                     last_pos = -1
                     self.display.invalidate()
                     self.display.render(
@@ -175,11 +159,9 @@ class WifiMenu:
                     )
                 elif choice == "CAPTURE_HCXTOOLS":
                     run_hcxtools(ssid, bssid, channel)
-                # al terminar la herramienta, volvemos a poner posición en 0
-                pos = 0
-                scroll_offset = 0
-                last_pos = -1
-
+   
+                    last_pos = -1
+                    self.display.invalidate()
             if pos != last_pos:
                 scroll_offset = max(0, pos - VISIBLE_LINES + 1)
                 self.display.render(tools[scroll_offset:scroll_offset + VISIBLE_LINES],
@@ -187,4 +169,3 @@ class WifiMenu:
                 last_pos = pos
 
             time.sleep(REPEAT_DELAY)
-
