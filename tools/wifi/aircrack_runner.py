@@ -5,9 +5,97 @@ import time
 import os
 import signal
 from display.screen import MenuDisplay
+from config.gpio_config import read_buttons, REPEAT_DELAY
+
+VISIBLE_LINES = 4
+WORDLIST_DIR = "/usr/share/wordlists"
+DEFAULT_WORDLIST = "/usr/share/wordlists/rockyou.txt"
+
+
+def _find_wordlists():
+    found = []
+    if not os.path.isdir(WORDLIST_DIR):
+        return found
+
+    try:
+        for root, _, files in os.walk(WORDLIST_DIR):
+            for f in files:
+                if not f.lower().endswith(".txt"):
+                    continue
+                full = os.path.join(root, f)
+                try:
+                    if os.path.getsize(full) < 10:
+                        continue
+                except Exception:
+                    continue
+                found.append(full)
+    except Exception:
+        pass
+
+    def sort_key(path):
+        name = os.path.basename(path).lower()
+        if "rockyou" in name:
+            return (0, name)
+        return (1, name)
+
+    found.sort(key=sort_key)
+    return found
+
+
+def _select_wordlist(display: MenuDisplay):
+    wordlists = _find_wordlists()
+
+    if not wordlists:
+        if os.path.isfile(DEFAULT_WORDLIST):
+            display.show_message(["Default:", "rockyou.txt"], center=True)
+            time.sleep(1.5)
+            return DEFAULT_WORDLIST
+        display.show_message(["No hay diccionarios", "en wordlists"], center=True)
+        time.sleep(1.5)
+        return None
+
+    options = [os.path.basename(p) for p in wordlists]
+    options.append("BACK")
+
+    pos = 0
+    last_pos = -1
+
+    display.show_message(["Elegir Diccionario:"], center=True)
+    time.sleep(1.5)
+
+    while True:
+        if pos != last_pos:
+            start = max(0, pos - (VISIBLE_LINES - 1))
+            window = options[start:start + VISIBLE_LINES]
+            display.render(window, pos - start)
+            last_pos = pos
+
+        buttons = read_buttons()
+
+        if buttons["up"]:
+            pos = (pos - 1) % len(options)
+        elif buttons["down"]:
+            pos = (pos + 1) % len(options)
+        elif buttons["enter"]:
+            choice = options[pos]
+            if choice == "BACK":
+                return None
+            selected = wordlists[pos]
+            size_kb = 0
+            try:
+                size_kb = os.path.getsize(selected) // 1024
+            except Exception:
+                pass
+            size_str = f"{size_kb} KB" if size_kb < 1024 else f"{size_kb // 1024} MB"
+            display.show_message([os.path.basename(selected)[:18], size_str], center=True)
+            time.sleep(1.2)
+            return selected
+
+        time.sleep(REPEAT_DELAY)
+
 
 def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
-   
+
     display = MenuDisplay()
     wifi_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "/opt/beetle/reports/wifi"))
     os.makedirs(wifi_folder, exist_ok=True)
@@ -18,7 +106,7 @@ def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
     # ====================== MODO DIRECTO (Beetlegotchi CRACK) ======================
     if cap_path and os.path.isfile(cap_path):
         cap_files = [cap_path]
-        # Intentar extraer BSSID del nombre del archivo (SSID_MAC.cap)
+   
         try:
             fname = os.path.basename(cap_path)
             base = os.path.splitext(fname)[0]
@@ -29,7 +117,7 @@ def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
         except Exception:
             pass
 
-        display.show_message(["  Crackeando .cap  ", os.path.basename(cap_path)[:18]], center=True)
+        display.show_message([" Crackeando .cap ", os.path.basename(cap_path)[:18]], center=True)
         time.sleep(1)
 
     # ====================== MODO CLÁSICO (WiFi Menu) ======================
@@ -40,7 +128,7 @@ def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
             return None
 
         bssid_clean = bssid.replace(":", "").lower()
-        display.show_message(["  Buscando .cap...  ", ssid], center=True)
+        display.show_message([" Buscando .cap... ", ssid], center=True)
         time.sleep(1)
 
         for root, _, files in os.walk(wifi_folder):
@@ -53,27 +141,33 @@ def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
                     cap_files.append(full_path)
 
         if not cap_files:
-            display.show_message(["  CAP no encontrado  "], center=True)
+            display.show_message([" CAP no encontrado "], center=True)
             time.sleep(2)
             return None
 
-        display.show_message([f"CAPs encontradas: {len(cap_files)}"], center=True)
+        display.show_message(["CAPs encontradas:", f"{len(cap_files)}"], center=True)
         time.sleep(1)
 
     if not cap_files:
         return None
 
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    safe_ssid = (ssid.replace(" ", "_") if ssid else os.path.basename(cap_files[0]).split('.')[0][:20])
-    
-    psk_path = os.path.join(wifi_folder, f"psk_{safe_ssid}_{timestamp}.txt")
-    logfile = os.path.join(wifi_folder, f"aircrack_{safe_ssid}_{timestamp}.log")
+    # ====================== SELECCIÓN DE DICCIONARIO ======================
+    wordlist = _select_wordlist(display)
+    if not wordlist:
+        display.show_message(["Cancelado"], center=True)
+        time.sleep(1)
+        return None
 
-    wordlist = "/usr/share/wordlists/rockyou.txt"
     if not os.path.isfile(wordlist):
-        display.show_message(["Wordlist no encontrada"], center=True)
+        display.show_message(["Wordlist no", " encontrada!"], center=True)
         time.sleep(2)
         return None
+
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    safe_ssid = (ssid.replace(" ", "_") if ssid else os.path.basename(cap_files[0]).split('.')[0][:20])
+
+    psk_path = os.path.join(wifi_folder, f"psk_{safe_ssid}_{timestamp}.txt")
+    logfile = os.path.join(wifi_folder, f"aircrack_{safe_ssid}_{timestamp}.log")
 
     # ====================== FUNCIÓN INTERNA DE CRACK ======================
     def crack_cap(capfile, logfile_handle):
@@ -121,10 +215,12 @@ def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
                             parte = lower.split("passphrase is")[1].strip()
                         clave = parte.strip(" []\"'\n")
                         found_key = clave
-                        display.show_message([" Clave encontrada! "], center=True)
+                        display.show_message([" CLAVE ENCONTRADA! "], center=True)
+                        time.sleep(2)
                     except Exception:
                         found_key = None
                         display.show_message([" Clave no encontrada! "], center=True)
+                        time.sleep(1)
                     try:
                         proc.send_signal(signal.SIGINT)
                     except Exception:
@@ -165,6 +261,8 @@ def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
     # ====================== EJECUCIÓN ======================
     try:
         with open(logfile, "w") as log_f:
+            log_f.write(f"Wordlist: {wordlist}\n")
+            log_f.flush()
             for cap in cap_files:
                 display.show_message([f"Intentando:", os.path.basename(cap)[:20]], center=True)
                 clave = crack_cap(cap, log_f)
