@@ -15,6 +15,8 @@ from PIL import Image, ImageDraw, ImageFont
 from tools.wifi.wpa_sec_uploader import run_wpa_sec_upload
 
 VISIBLE_LINES = 4
+WORDLIST_DIR = "/usr/share/wordlists"
+DEFAULT_WORDLIST = "/usr/share/wordlists/rockyou.txt"
 
 # ==================== CONFIGURACIÓN COMÚN ====================
 IFACE = "mon0"
@@ -28,6 +30,88 @@ AIREDURATION_LIMIT = 25
 _child_procs = []
 _interrupted = False
 _brought_up_by_script = False
+
+
+def _find_wordlists():
+    found = []
+    if not os.path.isdir(WORDLIST_DIR):
+        return found
+
+    try:
+        for root, _, files in os.walk(WORDLIST_DIR):
+            for f in files:
+                if not f.lower().endswith(".txt"):
+                    continue
+                full = os.path.join(root, f)
+                try:
+                    if os.path.getsize(full) < 10:
+                        continue
+                except Exception:
+                    continue
+                found.append(full)
+    except Exception:
+        pass
+
+    def sort_key(path):
+        name = os.path.basename(path).lower()
+        if "rockyou" in name:
+            return (0, name)
+        return (1, name)
+
+    found.sort(key=sort_key)
+    return found
+
+
+def _select_wordlist(display: MenuDisplay):
+    wordlists = _find_wordlists()
+
+    if not wordlists:
+        if os.path.isfile(DEFAULT_WORDLIST):
+            display.show_message(["Default:", "rockyou.txt"], center=True)
+            time.sleep(1.5)
+            return DEFAULT_WORDLIST
+        display.show_message(["No hay diccionarios", "en wordlists"], center=True)
+        time.sleep(1.5)
+        return None
+
+    options = [os.path.basename(p) for p in wordlists]
+    options.append("BACK")
+
+    pos = 0
+    last_pos = -1
+
+    display.show_message(["Elegir Diccionario:"], center=True)
+    time.sleep(1.5)
+
+    while True:
+        if pos != last_pos:
+            start = max(0, pos - (VISIBLE_LINES - 1))
+            window = options[start:start + VISIBLE_LINES]
+            display.render(window, pos - start)
+            last_pos = pos
+
+        buttons = read_buttons()
+
+        if buttons["up"]:
+            pos = (pos - 1) % len(options)
+        elif buttons["down"]:
+            pos = (pos + 1) % len(options)
+        elif buttons["enter"]:
+            choice = options[pos]
+            if choice == "BACK":
+                return None
+            selected = wordlists[pos]
+            size_kb = 0
+            try:
+                size_kb = os.path.getsize(selected) // 1024
+            except Exception:
+                pass
+            size_str = f"{size_kb} KB" if size_kb < 1024 else f"{size_kb // 1024} MB"
+            display.show_message([os.path.basename(selected)[:18], size_str], center=True)
+            time.sleep(1.2)
+            return selected
+
+        time.sleep(REPEAT_DELAY)
 
 
 def run_cmd(cmd, stdout=None, stderr=None, text=True, check=False, timeout=None):
@@ -391,21 +475,15 @@ class PwnagotchiRunner:
             draw.rectangle([left_eye_x + 4, eye_y + 6, left_eye_x + eye_size - 4, eye_y + 14], fill=255)
             draw.rectangle([right_eye_x + 4, eye_y + 6, right_eye_x + eye_size - 4, eye_y + 14], fill=255)
         elif face_type == "sleepy":
-            # Ojos cerrados
             draw.rectangle([left_eye_x + 4, eye_y + 10, left_eye_x + eye_size - 4, eye_y + 13], fill=255)
             draw.rectangle([right_eye_x + 4, eye_y + 10, right_eye_x + eye_size - 4, eye_y + 13], fill=255)
-            # Fuente para Zzz
             try:
                 z_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
             except:
-                z_font = self.display.font         
-            # Movimiento diagonal (derecha + arriba)
-            t = (time.time() * 8) % 20  # velocidad y recorrido
-            # Z más cercana (más grande)
+                z_font = self.display.font
+            t = (time.time() * 8) % 20
             draw.text((36 + t, 12 - t//3), "Z", font=z_font, fill=255)
-            # Z media
             draw.text((44 + t, 7 - t//3), "z", font=z_font, fill=255)
-            # Z lejana (más arriba)
             draw.text((52 + t, 3 - t//3), "z", font=z_font, fill=255)
         else:
             pupil_size = 7
@@ -428,25 +506,20 @@ class PwnagotchiRunner:
         elif face_type == "thinking":
             draw.arc([mouth_x + 6, mouth_y + 2, mouth_x + mouth_w - 6, mouth_y + 9], start=0, end=180, fill=255, width=2)
         elif face_type == "sleepy":
-            # Animación de ronquido (O que crece)
-            phase = (time.time() * 3) % 3  # velocidad del ciclo
-
+            phase = (time.time() * 3) % 3
             if phase < 1:
-                size = 4   # chico
+                size = 4
             elif phase < 2:
-                size = 7   # mediano
+                size = 7
             else:
-                size = 10  # grande
-
-            cx = mouth_x + mouth_w // 2  # centro X
-            cy = mouth_y + 7            # centro Y
-
+                size = 10
+            cx = mouth_x + mouth_w // 2
+            cy = mouth_y + 7
             draw.ellipse(
                 [cx - size//2, cy - size//2, cx + size//2, cy + size//2],
                 outline=255,
                 fill=255
             )
-            
         else:
             draw.line([mouth_x + 4, mouth_y + 4, mouth_x + mouth_w - 4, mouth_y + 4], fill=255, width=2)
 
@@ -468,7 +541,6 @@ class PwnagotchiRunner:
                 draw.text((4, 55), ssid[:15], font=self.display.font, fill=255)
 
     def show_pwnagotchi_face(self, face: str, ssid: str = ""):
-        """Usa MenuDisplay para que solo se actualicen los píxeles que cambian"""
         now = time.time()
         is_important = face in ("handshake_success", "angry", "frustrated", "excited", "surprised")
         if (face == self.current_face and ssid == self.current_ssid and
@@ -481,19 +553,12 @@ class PwnagotchiRunner:
         self.current_ssid = ssid
         self.last_face_time = now
 
-        # Crear imagen completa y dejar que _update_differential se encargue de solo actualizar lo necesario
         with self.display.lock:
             img = Image.new("1", device.size)
             draw = ImageDraw.Draw(img)
-            
-            # HS counter
             hs_text = f"HS:{self.handshakes}"
             draw.text((2, 1), hs_text, font=self.display.font, fill=255)
-            
-            # Cara principal
             self._draw_pwn_face(draw, chosen_face, ssid)
-            
-            # Enviar a display (differential update)
             self.display.display(img)
 
     def update_status(self, face: str = "neutral", current_ssid: str = ""):
@@ -536,20 +601,15 @@ class PwnagotchiRunner:
     def _is_valid_capture(self, cap_path: str) -> bool:
         if not os.path.isfile(cap_path):
             return False
-
         try:
             out = subprocess.check_output(
                 ["aircrack-ng", cap_path],
                 stderr=subprocess.STDOUT,
                 timeout=10
             ).decode(errors="ignore").lower()
-
-            # VALIDACIÓN 
             if "1 handshake" in out or "2 handshake" in out:
                 return True
-
             return False
-
         except Exception:
             return False
 
@@ -581,9 +641,14 @@ class PwnagotchiRunner:
         self.display.show_message([" Crackeando... ", filename[:18]], center=True)
         time.sleep(1)
 
-        wordlist = "/usr/share/wordlists/rockyou.txt"
+        wordlist = _select_wordlist(self.display)
+        if not wordlist:
+            self.display.show_message(["Cancelado"], center=True)
+            time.sleep(1)
+            return None
+
         if not os.path.isfile(wordlist):
-            self.display.show_message(["Wordlist no encontrada"], center=True)
+            self.display.show_message(["Wordlist no", " encontrada!"], center=True)
             time.sleep(2)
             return None
 
@@ -600,36 +665,97 @@ class PwnagotchiRunner:
             if len(potential) == 12 and all(c in '0123456789abcdefABCDEF' for c in potential):
                 bssid_for_crack = ':'.join(potential[i:i+2] for i in range(0, 12, 2))
 
-        cmd = ["sudo", "aircrack-ng", "-w", wordlist, "-l", psk_path, cap_path]
         if bssid_for_crack:
-            cmd.insert(4, "-b")
-            cmd.insert(5, bssid_for_crack)
+            cmd = ["sudo", "aircrack-ng", "-w", wordlist, "-b", bssid_for_crack, "-l", psk_path, cap_path]
+        else:
+            cmd = ["sudo", "aircrack-ng", "-w", wordlist, "-l", psk_path, cap_path]
 
+        key_found = None
         try:
             with open(logfile, "w") as log_f:
-                proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
-                key_found = None
-                for raw in proc.stdout:
-                    line = raw.rstrip("\n")
-                    log_f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {line}\n")
-                    log_f.flush()
-                    lower = line.lower()
-                    if "key found" in lower or "passphrase is" in lower:
-                        try:
-                            if "key found" in lower:
-                                parte = lower.split(" key found!")[1].strip()
-                            else:
-                                parte = lower.split("passphrase is")[1].strip()
-                            key_found = parte.strip(" []'\"\n")
-                            self.display.show_message(["Clave:", key_found[:16]], center=True)
+                log_f.write(f"Wordlist: {wordlist}\n")
+                log_f.write(f"CMD: {' '.join(cmd)}\n")
+                log_f.flush()
+                proc = subprocess.Popen(
+                    cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+                )
+                line_count = 0
+                last_display = time.time()
+                try:
+                    for raw in proc.stdout:
+                        now_ts = time.strftime("%Y-%m-%d %H:%M:%S")
+                        line = raw.rstrip("\n")
+                        line_count += 1
+                        log_f.write(f"[{now_ts}] {line}\n")
+                        log_f.flush()
+                        lower = line.strip().lower()
+
+                        if "reading packets" in lower:
+                            self.display.show_message(["Leyendo paquetes..."], center=True)
+                        elif "handshake" in lower:
+                            self.display.show_message(["Handshake detectado"], center=True)
+                        elif "passphrase not in dictionary" in lower:
+                            self.display.show_message(["Sin clave en diccionario"], center=True)
+                        elif "key found" in lower or "passphrase is" in lower:
+                            try:
+                                if "key found" in lower:
+                                    parte = lower.split("key found!")[1].strip()
+                                else:
+                                    parte = lower.split("passphrase is")[1].strip()
+                                clave = parte.strip(" []\"'\n")
+                                if clave:
+                                    key_found = clave
+                                    self.display.show_message([" CLAVE ENCONTRADA! "], center=True)
+                                    time.sleep(1.5)
+                                    clave_display = clave if len(clave) <= 16 else (clave[:16] + "...")
+                                    self.display.show_message([clave_display], center=True)
+                            except Exception:
+                                key_found = None
+                            try:
+                                proc.send_signal(signal.SIGINT)
+                            except Exception:
+                                try:
+                                    proc.terminate()
+                                except Exception:
+                                    pass
                             break
+                        elif "no valid" in lower:
+                            self.display.show_message([" .cap inválido "], center=True)
+                        else:
+                            if line_count % 50 == 0 or time.time() - last_display > 5:
+                                texto = line.strip()[:12]
+                                self.display.show_message([texto, f"{line_count} lines"])
+                                last_display = time.time()
+                except Exception as e:
+                    log_f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Exception: {e}\n")
+                finally:
+                    try:
+                        ret = proc.wait(timeout=5)
+                    except Exception:
+                        try:
+                            proc.send_signal(signal.SIGINT)
+                            ret = proc.wait(timeout=5)
                         except Exception:
-                            pass
-                proc.wait(timeout=60)
-        except Exception as e:
+                            try:
+                                proc.terminate()
+                                ret = proc.wait(timeout=5)
+                            except Exception:
+                                ret = None
+                    log_f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] returncode: {ret}\n")
+                    log_f.flush()
+        except Exception:
             self.display.show_message(["  Error en cracking  "], center=True)
             time.sleep(2)
             return None
+
+        if not key_found and os.path.isfile(psk_path):
+            try:
+                with open(psk_path, "r") as f:
+                    content = f.read().strip()
+                if content:
+                    key_found = content
+            except Exception:
+                pass
 
         if key_found:
             try:
@@ -637,11 +763,13 @@ class PwnagotchiRunner:
                     f.write(key_found + "\n")
             except Exception:
                 pass
-            time.sleep(4)
+            clave_display = key_found if len(key_found) <= 16 else (key_found[:16] + "...")
+            self.display.show_message([clave_display], center=True)
+            time.sleep(5)
             return key_found
         else:
-            self.display.show_message([" No se encontró clave "], center=True)
-            time.sleep(3)
+            self.display.show_message([" No se encontró ", " la clave "], center=True)
+            time.sleep(2)
             return None
 
     # ==================== MODO SCAN ====================
@@ -809,7 +937,7 @@ class PwnagotchiRunner:
                     run_wpa_sec_upload()
                 elif choice == "DELETE_ALL":
                     self._borrar_menu()
-      
+
                 last_pos = -1
                 self.display.invalidate()
             if position != last_pos:
