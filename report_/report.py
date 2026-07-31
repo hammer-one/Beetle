@@ -15,7 +15,7 @@ class ReportManager:
         self.base = "/opt/beetle/reports"
 
     def show_reports(self):
-        categories = ["wifi", "bt", "CamXploit", "hydra", "BACK"]
+        categories = ["wifi", "bt", "CamXploit", "hydra", "beetlegotchi", "BACK"]
         pos = 0
         last_pos = -1
         VISIBLE = 4
