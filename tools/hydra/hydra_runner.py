@@ -32,6 +32,87 @@ class HydraRunner:
         ip = kb.input_ip_port("IP")
         return ip.strip() if ip and ip.strip() else None
 
+    def _load_usernames(self):
+        users = []
+        if not os.path.isfile(self.wordlist_user):
+            return users
+        try:
+            with open(self.wordlist_user, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    u = line.strip()
+                    if u and not u.startswith("#"):
+                        users.append(u)
+        except Exception:
+            pass
+        return users
+
+    def _select_mode(self) -> str:
+        options = ["MANUAL", "AUTO", "BACK"]
+        pos = 0
+        last_pos = -1
+        VISIBLE = 4
+
+        while True:
+            if pos != last_pos:
+                start = max(0, pos - (VISIBLE - 1))
+                window = options[start:start + VISIBLE]
+                self.display.render(window, pos - start)
+                last_pos = pos
+
+            buttons = read_buttons()
+            if buttons["up"]:
+                pos = (pos - 1) % len(options)
+            elif buttons["down"]:
+                pos = (pos + 1) % len(options)
+            elif buttons["enter"]:
+                choice = options[pos]
+                if choice == "BACK":
+                    return None
+                elif choice == "MANUAL":
+                    return "manual"
+                elif choice == "AUTO":
+                    return "auto"
+
+            time.sleep(REPEAT_DELAY)
+
+    def _select_username(self) -> str:
+        users = self._load_usernames()
+        if not users:
+            self.display.show_message(["No hay usuarios", "en username.txt"], center=True)
+            time.sleep(2)
+            return None
+
+        options = users + ["BACK"]
+        pos = 0
+        last_pos = -1
+        VISIBLE = 4
+
+        self.display.show_message(["Elegir usuario:"], center=True)
+        time.sleep(1.5)
+
+        while True:
+            if pos != last_pos:
+                start = max(0, pos - (VISIBLE - 1))
+                window = options[start:start + VISIBLE]
+                display_window = [u[:20] if len(u) > 20 else u for u in window]
+                self.display.render(display_window, pos - start)
+                last_pos = pos
+
+            buttons = read_buttons()
+            if buttons["up"]:
+                pos = (pos - 1) % len(options)
+            elif buttons["down"]:
+                pos = (pos + 1) % len(options)
+            elif buttons["enter"]:
+                choice = options[pos]
+                if choice == "BACK":
+                    return None
+                self.display.show_message(["Usuario:", choice[:16]], center=True)
+                time.sleep(1.2)
+                return choice
+
+            time.sleep(REPEAT_DELAY)
+
     def _scan_services(self, target_ip: str):
         self.display.show_message(["Escaneando...", target_ip], center=True)
      
@@ -125,17 +206,29 @@ class HydraRunner:
         except Exception as e:
             print(f"Error formateando reporte: {e}")
 
-    def _run_hydra(self, target_ip: str, service: str, port: str):
+    def _run_hydra(self, target_ip: str, service: str, port: str, single_user: str = None):
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         report_file = os.path.join(self.report_dir, f"hydra_{service}_{target_ip}_{timestamp}.txt")
      
+        mode_label = f"user:{single_user}" if single_user else "AUTO"
         self.display.show_message(["Brute Force", f"{service.upper()}", f"{target_ip}:{port}"], center=True)
+        time.sleep(0.8)
+        self.display.show_message([mode_label[:18]], center=True)
         time.sleep(1)
 
-        cmd = [
-            "sudo", "hydra", "-L", self.wordlist_user, "-P", self.wordlist_pass,
-            "-t", "6", "-vV", "-f", "-o", report_file, target_ip, service
-        ]
+        cmd = ["sudo", "hydra"]
+
+        if single_user:
+            cmd.extend(["-l", single_user])
+        else:
+            cmd.extend(["-L", self.wordlist_user])
+
+        cmd.extend([
+            "-P", self.wordlist_pass,
+            "-t", "6", "-vV", "-f", "-o", report_file,
+            target_ip, service
+        ])
+
         if port and port != "default":
             cmd.extend(["-s", port])
 
@@ -226,23 +319,38 @@ class HydraRunner:
             self.display.show_message(["Necesitas estar", "conectado a WiFi"], center=True)
             time.sleep(1.5)
             return
+
         target_ip = self._input_ip()
         if not target_ip or len(target_ip.split('.')) != 4:
             self.display.show_message(["IP Inválida"], center=True)
             time.sleep(1.5)
             return
+
+        mode = self._select_mode()
+        if mode is None:
+            return 
+
+        single_user = None
+        if mode == "manual":
+            single_user = self._select_username()
+            if single_user is None:
+                return 
+
         services = self._scan_services(target_ip)
         if not services:
             self.display.show_message(["Sin Servicios", "Para", "Brute Force"], center=True)
             time.sleep(1.5)
             return
+
         self.display.show_message(["Servicios", "Encontrados", f"{len(services)}"], center=True)
         time.sleep(1.5)
+
         for port, service in services:
             btn = read_buttons()
             if btn.get("enter"):
                 time.sleep(1)
                 break
-            self._run_hydra(target_ip, service, port)
+            self._run_hydra(target_ip, service, port, single_user=single_user)
+
         self.display.show_message(["HYDRA", "FINALIZADO"], center=True)
         time.sleep(1.5)
