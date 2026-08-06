@@ -146,7 +146,7 @@ class HydraRunner:
                             'mysql': 'mysql', 'postgresql': 'postgres',
                             'ms-sql-s': 'mssql', 'rdp': 'rdp'
                         }
-                        service_name = service_map.get(svc, svc)
+                        service_name = service_map.get(svc)
                         if service_name:
                             services.append((port, service_name))
          
