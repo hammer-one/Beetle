@@ -25,7 +25,7 @@ DWELL_MS_MIN = 50
 DWELL_MS_MAX = 1000
 DWELL_STEP = 50
 
-MAX_PKTS_PER_DWELL = 250         
+MAX_PKTS_PER_DWELL = 450         
 MAX_DRAIN_LINES = 800           
 BYTES_TO_US_FACTOR = 8.0 / 6.0
 PKT_OVERHEAD_US = 60.0
@@ -419,6 +419,8 @@ def run_analyzer_wifi():
                 bytes_total += extra * 80
 
             l = estimate_load(bytes_total, pkt_count, dwell_ms)
+            CALIBRATION_FACTOR = 2.0
+            l = min(100, int(round(l * CALIBRATION_FACTOR)))
             load[current_ch] = l
             if l > peak[current_ch]:
                 peak[current_ch] = l
