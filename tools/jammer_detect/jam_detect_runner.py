@@ -17,9 +17,9 @@ IFACE = "mon0"
 MON_UP_CMD = ["sudo", "mon0up"]
 MON_DOWN_CMD = ["sudo", "mon0down"]
 
-CHANNELS = list(range(1, 12))        
-DWELL_MS = 60                         
-HOLD_MS = 3500                      
+CHANNELS = list(range(1, 12))
+DWELL_MS = 60
+HOLD_MS = 3000
 RSSI_MAX = -30
 RSSI_MIN = -90
 
@@ -215,82 +215,155 @@ def rssi_to_percent(rssi):
     return max(0, min(100, int(100 * (r - RSSI_MIN) / (RSSI_MAX - RSSI_MIN))))
 
 
-def draw_jam_screen(display, active, cur_ch):
+def draw_jam_screen(display, active, peak_history, cur_ch):
     width, height = device.size
     img = Image.new("1", (width, height), 0)
     draw = ImageDraw.Draw(img)
 
     font = display.font
+
     try:
-        line_h = font.getbbox("Ay")[3] + 2
+        line_h = font.getbbox("Ay")[3] + 1
     except Exception:
-        line_h = 12
+        line_h = 10
 
     now = time.time()
+
     recent = {
         ch: data for ch, data in active.items()
-        if (now - data.get("last", 0)) * 1000 < HOLD_MS and data.get("pct", 0) > 0
+        if (now - data.get("last", 0)) * 1000 < HOLD_MS
+        and data.get("pct", 0) > 0
     }
+
     sorted_chs = sorted(
         recent.keys(),
-        key=lambda c: (recent[c].get("pct", 0), recent[c].get("count", 0)),
+        key=lambda c: (
+            recent[c].get("pct", 0),
+            recent[c].get("count", 0)
+        ),
         reverse=True
     )[:3]
 
     if sorted_chs:
         title = f"JAM! ch{sorted_chs[0]}"
-        draw.rectangle([(0, 0), (width - 1, line_h + 1)], fill=255)
+
+        draw.rectangle(
+            [(0, 0), (width - 1, line_h + 1)],
+            fill=255
+        )
+
         try:
             tw = font.getbbox(title)[2]
         except Exception:
             tw = len(title) * 6
-        draw.text(((width - tw) // 2, 1), title, font=font, fill=0)
+
+        draw.text(
+            ((width - tw) // 2, 1),
+            title,
+            font=font,
+            fill=0
+        )
+
     else:
         title = "JAMMER DETECT"
+
         try:
             tw = font.getbbox(title)[2]
         except Exception:
             tw = len(title) * 6
-        draw.text(((width - tw) // 2, 1), title, font=font, fill=255)
 
-    y = line_h + 3
+        draw.text(
+            ((width - tw) // 2, 1),
+            title,
+            font=font,
+            fill=255
+        )
 
-    if not sorted_chs:
-        msg = "scanning... no jam"
+    cur_index = CHANNELS.index(cur_ch)
+    group_start = (cur_index // 3) * 3
+
+    channels_to_draw = []
+
+    for i in range(3):
+        index = group_start + i
+
+        if index < len(CHANNELS):
+            channels_to_draw.append(CHANNELS[index])
+        else:
+            channels_to_draw.append(
+                CHANNELS[index % len(CHANNELS)]
+            )
+
+    y = line_h + 2
+
+    bar_max_w = width - 48
+
+    for ch in channels_to_draw:
+
+        data = recent.get(ch, {})
+        pct = data.get("pct", 0)
+        peak = peak_history.get(ch, 0)
+
+        draw.text(
+            (2, y),
+            f"Ch{ch}",
+            font=font,
+            fill=255
+        )
+
+        bx = 28
+        by = y + 2
+        bh = max(6, line_h - 4)
+
+        draw.rectangle(
+            [
+                (bx, by),
+                (bx + bar_max_w, by + bh)
+            ],
+            outline=255,
+            fill=0
+        )
+
+        fill_w = int(bar_max_w * pct / 100)
+
+        if fill_w > 0:
+            draw.rectangle(
+                [
+                    (bx + 1, by + 1),
+                    (bx + fill_w, by + bh - 1)
+                ],
+                fill=255
+            )
+
+        if peak > 0:
+            peak_x = bx + 1 + int(
+                (bar_max_w - 2) * peak / 100
+            )
+
+            if peak_x > bx + 1:
+                draw.line(
+                    [
+                        (peak_x, by + 1),
+                        (peak_x, by + bh - 1)
+                    ],
+                    fill=255
+                )
+
+        val_s = f"{pct}%"
+
         try:
-            mw = font.getbbox(msg)[2]
+            vw = font.getbbox(val_s)[2]
         except Exception:
-            mw = len(msg) * 6
-        draw.text(((width - mw) // 2, y + 4), msg, font=font, fill=255)
-        sc = f"scan ch{cur_ch}"
-        draw.text((4, height - line_h - 1), sc, font=font, fill=255)
-    else:
-        bar_max_w = width - 48
-        for ch in sorted_chs:
-            if y + line_h > height - 2:
-                break
-            data = recent[ch]
-            pct = data.get("pct", 0)
+            vw = len(val_s) * 6
 
-            draw.text((2, y), f"Ch{ch}", font=font, fill=255)
+        draw.text(
+            (width - vw - 2, y),
+            val_s,
+            font=font,
+            fill=255
+        )
 
-            bx, by = 28, y + 2
-            bh = max(6, line_h - 4)
-            draw.rectangle([(bx, by), (bx + bar_max_w, by + bh)], outline=255, fill=0)
-            fill_w = int(bar_max_w * pct / 100)
-            if fill_w > 0:
-                draw.rectangle([(bx + 1, by + 1), (bx + fill_w, by + bh - 1)], fill=255)
-
-            val_s = f"{pct}%"
-            try:
-                vw = font.getbbox(val_s)[2]
-            except Exception:
-                vw = len(val_s) * 6
-            draw.text((width - vw - 2, y), val_s, font=font, fill=255)
-            y += line_h
-
-        footer = f"scan ch{cur_ch}"
-        draw.text((2, height - line_h), footer, font=font, fill=255)
+        y += line_h
 
     display.display(img)
 
@@ -312,7 +385,8 @@ def run_jam_detect():
         _cleanup()
         return
 
-    active = {}     
+    active = {}
+    peak_history = {ch: 0 for ch in CHANNELS}
     idx = 0
     last_draw = 0.0
     current_ch = CHANNELS[0]
@@ -357,11 +431,13 @@ def run_jam_detect():
                 else:
                     pct = min(100, 30 + count * 18)
 
+                peak_history[current_ch] = max(peak_history[current_ch], pct)
+
                 active[current_ch] = {
                     "rssi": rssi,
                     "count": count,
                     "last": now,
-                    "pct": pct
+                    "pct": pct,
                 }
             else:
                 if current_ch in active:
@@ -372,7 +448,7 @@ def run_jam_detect():
                         active[current_ch]["pct"] = max(0, int(active[current_ch]["pct"] * 0.88))
 
             if (now - last_draw) > 0.09 or count > 0:
-                draw_jam_screen(display, active, current_ch)
+                draw_jam_screen(display, active, peak_history, current_ch)
                 last_draw = now
 
             idx = (idx + 1) % len(CHANNELS)
