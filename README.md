@@ -28,7 +28,8 @@ Es una herramienta **todo-en-uno**, compacta, fácil de usar y lista para llevar
 - **BLUETOOTH** — Escaneo y ejecución de ataques sobre dispositivos Bluetooth. ⚠️ Nota: El Bluetooth interno de la Raspberry                Pi con este kernel puede ser inestable en algunas versiones para estas funciones, se recomienda utilizar un                  adaptador USB Bluetooth v4.0 o v4.1, ya que versiones superiores (v4.2/5.0+) no son soportadas.
 
 - **BEETLEGOTCHI** — Modo inspirado en Pwnagotchi con caras animadas.
-- **JAMMER_DETECT** — Funcion para detección de equipos Jammer en redes wifi, indicando canal y potencia de ataque.
+- **JAMMER_DETECT** — Función para detección de equipos Jammer en redes wifi, indicando canal, potencia de ataque.
+- **ANALYZER_WIFI** — Función para analizar el tráfico wifi, medición temporal de canal mas saturado.
 - **PWM_TEST** - Genera una señal pwm  en GPIO-18 de 10hz hasta 2khz, seleccione entre PWM y ESC( para variadores de motores                Brushlees)
 - **CALCULATOR** — Calculadora con teclado numérico en pantalla (el menu esta oculto, mantener presionado el boton "enter"                    para activarlo.)
 - **UTILITIES** — Herramientas de sistema
