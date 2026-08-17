@@ -3,23 +3,13 @@
 
 import time
 import pigpio
-from display.screen import MenuDisplay
+from PIL import Image, ImageDraw
+from display.screen import MenuDisplay, device
 from config.gpio_config import read_buttons, REPEAT_DELAY
 
 
 class PwmRunner:
-    """
-    Controla PWM normal o ESC brushless vía GPIO18.
-
-    Fase 0: Selección de modo (PWM / ESC)
-    Fase 1: (Solo PWM) UP/DOWN ajustan la frecuencia (10–2000 Hz). ENTER confirma.
-    Fase 2: UP/DOWN ajustan potencia (0–100%). ENTER sale.
-
-    ESC usa señal tipo servo:
-        1000 µs = mínimo
-        2000 µs = máximo
-    """
-
+ 
     PIN = 18
     MAX_VALUE = 100
     BAR_LENGTH = 20
@@ -42,9 +32,6 @@ class PwmRunner:
 
         self.pi.set_mode(self.PIN, pigpio.OUTPUT)
 
-    # ---------------------------------------------------------
-    # Selección de modo
-    # ---------------------------------------------------------
     def select_mode(self):
         modes = ["PWM", "ESC"]
         index = 0
@@ -76,23 +63,101 @@ class PwmRunner:
 
         self.mode = modes[index]
 
-    # ---------------------------------------------------------
-    # Run principal
-    # ---------------------------------------------------------
+    def draw_pwm_screen(self, value):
+        width, height = device.size
+
+        img = Image.new("1", (width, height), 0)
+        draw = ImageDraw.Draw(img)
+
+        font = self.display.font
+
+        try:
+            line_h = font.getbbox("Ay")[3] + 2
+        except Exception:
+            line_h = 12
+
+        if self.mode == "PWM":
+            header = "GPIO-18 PWM"
+        else:
+            header = "GPIO-18 ESC"
+
+        try:
+            header_w = font.getbbox(header)[2]
+        except Exception:
+            header_w = len(header) * 6
+
+        draw.text(
+            ((width - header_w) // 2, 1),
+            header,
+            font=font,
+            fill=255
+        )
+
+        bx = 6
+        by = line_h + 4
+        bar_w = width - 12
+        bar_h = max(8, line_h + 2)
+
+        draw.rectangle(
+            [(bx, by), (bx + bar_w, by + bar_h)],
+            outline=255,
+            fill=0
+        )
+
+        fill_w = int((bar_w - 2) * value / self.MAX_VALUE)
+
+        if fill_w > 0:
+            draw.rectangle(
+                [
+                    (bx + 1, by + 1),
+                    (bx + fill_w, by + bar_h - 1)
+                ],
+                fill=255
+            )
+
+        if self.mode == "PWM":
+            footer = f"Duty: {value}%"
+        else:
+            pulse = 1000 + (value * 10)
+            footer = f"{pulse:.0f} us"
+
+        try:
+            footer_w = font.getbbox(footer)[2]
+        except Exception:
+            footer_w = len(footer) * 6
+
+        draw.text(
+            ((width - footer_w) // 2, by + bar_h + 4),
+            footer,
+            font=font,
+            fill=255
+        )
+
+        instruction = "ENTER ---> Salir"
+
+        try:
+            instruction_w = font.getbbox(instruction)[2]
+        except Exception:
+            instruction_w = len(instruction) * 6
+
+        draw.text(
+            ((width - instruction_w) // 2, height - line_h - 1),
+            instruction,
+            font=font,
+            fill=255
+        )
+
+        self.display.display(img)
+
     def run(self):
 
-        # --- Fase 0: Selección de modo ---
         self.select_mode()
 
-        # -----------------------------------------------------
-        # MODO PWM NORMAL
-        # -----------------------------------------------------
         if self.mode == "PWM":
 
             freq = 50
             last_freq = None
 
-            # --- Fase 1: Selección de frecuencia ---
             while True:
                 buttons = read_buttons()
 
@@ -110,7 +175,7 @@ class PwmRunner:
                         "Set Frecuencia",
                         f"{freq:4d} Hz",
                         f"UP/DOWN step {self.FREQ_STEP} Hz",
-                        "ENTER ---> OK"
+                        "<ENTER> confirmar"
                     ]
                     self.display.show_message(lines, center=False)
                     last_freq = freq
@@ -120,11 +185,7 @@ class PwmRunner:
             self.pi.set_PWM_frequency(self.PIN, freq)
             self.pi.set_PWM_range(self.PIN, self.MAX_VALUE)
 
-        # -----------------------------------------------------
-        # MODO ESC
-        # -----------------------------------------------------
         else:
-            # ESC siempre trabaja a 50 Hz tipo servo
             self.display.show_message(
                 ["Modo ESC",
                  "Armando...",
@@ -133,13 +194,9 @@ class PwmRunner:
                 center=False
             )
 
-            # Armado ESC
             self.pi.set_servo_pulsewidth(self.PIN, 1000)
             time.sleep(2)
 
-        # -----------------------------------------------------
-        # Fase 2: Ajuste de potencia (ambos modos)
-        # -----------------------------------------------------
         value = 0
         last_value = None
 
@@ -156,28 +213,9 @@ class PwmRunner:
                 break
 
             if value != last_value:
-                bar_count = int((value / self.MAX_VALUE) * self.BAR_LENGTH)
-                bar = "#" * bar_count + "-" * (self.BAR_LENGTH - bar_count)
+                self.draw_pwm_screen(value)
+                last_value = value            
 
-                if self.mode == "PWM":
-                    header = f"GPIO-18 PWM"
-                    footer = f"Duty: {value}%"
-                else:
-                    pulse = 1000 + (value * 10)
-                    header = "GPIO-18 ESC"
-                    footer = f"{pulse:.0f} us"
-
-                lines = [
-                    header,
-                    f"[{bar}]",
-                    footer,
-                    "ENTER ---> Salir"
-                ]
-
-                self.display.show_message(lines, center=False)
-                last_value = value
-
-            # Aplicar señal según modo
             if self.mode == "PWM":
                 self.pi.set_PWM_dutycycle(self.PIN, value)
             else:
@@ -186,9 +224,6 @@ class PwmRunner:
 
             time.sleep(REPEAT_DELAY)
 
-        # -----------------------------------------------------
-        # Apagar y salir
-        # -----------------------------------------------------
         if self.mode == "PWM":
             self.pi.set_PWM_dutycycle(self.PIN, 0)
         else:
@@ -199,4 +234,3 @@ class PwmRunner:
         self.pi.stop()
         self.display.show_message(["   PWM detenido.   "], center=True)
         time.sleep(1)
-
