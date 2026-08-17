@@ -1,4 +1,5 @@
 # /opt/beetle/menus/menu_manager.py
+
 import time
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
@@ -14,6 +15,7 @@ from tools.bjorn.bjorn_runner import BjornRunner
 from tools.CamXploit.CamXploit_runner import CamXploitRunner
 from tools.hydra.hydra_runner import HydraRunner
 from tools.jammer_detect.jam_detect_runner import run_jam_detect
+from tools.analyzer_wifi.analyzer_wifi_runner import run_analyzer_wifi
 
 class MenuManager:
 
@@ -26,7 +28,7 @@ class MenuManager:
         self._render_window()
 
     def _get_current_options(self):
-        options = ["WIFI", "BLUETOOTH", "BEETLEGOTCHI", "JAMMER_DETECT", "PWM_TEST", "CALCULATOR", "UTILITIES"]
+        options = ["WIFI", "BLUETOOTH", "BEETLEGOTCHI", "JAMMER_DETECT", "ANALYZER_WIFI", "PWM_TEST", "CALCULATOR", "UTILITIES"]
         if is_wifi_client_connected():
           
             try:
@@ -82,6 +84,8 @@ class MenuManager:
                     PwnagotchiRunner().run()
                 elif choice == "JAMMER_DETECT":
                     run_jam_detect()
+                elif choice == "ANALYZER_WIFI":
+                    run_analyzer_wifi()
                 elif choice == "CAMXPLOIT":
                     CamXploitRunner().run()
                 elif choice == "BRUTE_FORCE_HYDRA":
