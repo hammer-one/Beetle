@@ -1,9 +1,10 @@
- # /opt/beetle/brightness/brightness.py 
+# /opt/beetle/brightness/brightness.py 
 
 import subprocess
 import time
 import os
-from display.screen import MenuDisplay
+from PIL import Image, ImageDraw
+from display.screen import MenuDisplay, device
 from config.gpio_config import read_buttons, REPEAT_DELAY
 from typing import Optional  
 
@@ -11,6 +12,68 @@ class BrightnessControl:
     def __init__(self, display: MenuDisplay):
         self.display = display
         self.BRIGHTNESS_CONFIG = "/opt/beetle/config/brightness.cfg"
+
+    def draw_brightness_screen(self, current, min_value=0, max_value=255):
+        width, height = device.size
+
+        img = Image.new("1", (width, height), 0)
+        draw = ImageDraw.Draw(img)
+
+        font = self.display.font
+
+        try:
+            line_h = font.getbbox("Ay")[3] + 2
+        except Exception:
+            line_h = 12
+
+        pct = int(current * 100 / max_value)
+
+        title = f"BRIGHTNESS: {pct}%"
+
+        try:
+            title_w = font.getbbox(title)[2]
+        except Exception:
+            title_w = len(title) * 6
+
+        draw.text(
+            ((width - title_w) // 2, 1),
+            title,
+            font=font,
+            fill=255
+        )
+
+        bx = 6
+        by = line_h + 5
+        bar_w = width - 12
+        bar_h = max(10, line_h + 2)
+
+        draw.rectangle(
+            [(bx, by), (bx + bar_w, by + bar_h)],
+            outline=255,
+            fill=0
+        )
+
+        fill_w = int((bar_w - 2) * current / max_value)
+
+        if fill_w > 0:
+            draw.rectangle(
+                [
+                    (bx + 1, by + 1),
+                    (bx + fill_w, by + bar_h - 1)
+                ],
+                fill=255
+            )
+
+        value_text = f"{int(current)}/255"
+
+        try:
+            value_w = font.getbbox(value_text)[2]
+        except Exception:
+            value_w = len(value_text) * 6
+
+        draw.text(((width - value_w) // 2, by + bar_h + 4), value_text, font=font, fill=255)
+        
+        self.display.display(img)
 
     def brightness(self):
         MIN = 0
@@ -23,7 +86,7 @@ class BrightnessControl:
             if current is None:
                 current = 128
 
-        self.display.show_message([f"BRIGHTNESS: {int(current*100/MAX)}%", "", "<UP/DOWN> -> Ajustar", "<ENTER> ----> OK"], center=False)
+        self.draw_brightness_screen(current, MIN, MAX)
 
         last_shown = None
 
@@ -49,7 +112,7 @@ class BrightnessControl:
                 self._set_brightness_safe(current)
                 pct = int(current * 100 / MAX)
                 if pct != last_shown:
-                    self.display.show_message([f"BRIGHTNESS: {pct}%", "", "<UP/DOWN> -> Ajustar", "<ENTER> ----> OK"], center=False)
+                    self.draw_brightness_screen(current, MIN, MAX)
                     last_shown = pct
 
             time.sleep(REPEAT_DELAY)
