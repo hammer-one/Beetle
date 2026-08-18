@@ -9,6 +9,7 @@ import signal
 import atexit
 import sys
 import select
+from collections import defaultdict, deque, Counter
 from PIL import Image, ImageDraw
 from display.screen import MenuDisplay, device
 from config.gpio_config import read_buttons, REPEAT_DELAY
@@ -23,12 +24,20 @@ HOLD_MS = 3000
 RSSI_MAX = -30
 RSSI_MIN = -90
 
+MIN_PACKETS_BURST = 2
+MIN_PERSISTENCE = 1
+BROADCAST_WEIGHT = 1.5
+MIN_SAME_MAC_RATIO = 0.6
+MAC_HISTORY_LEN = 8
+
 RSSI_RE = re.compile(
     r"(-?\d+)\s*dBm|"
     r"signal[:\s=]+(-?\d+)|"
     r"ssi[:\s=]+(-?\d+)",
     re.IGNORECASE
 )
+
+MAC_RE = re.compile(r"([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})")
 
 _child_procs = []
 _cleanup_done = False
@@ -208,6 +217,26 @@ def parse_rssi(line):
     return None
 
 
+def extract_source_mac(line):
+    macs = MAC_RE.findall(line)
+    if len(macs) >= 2:
+        return macs[1].lower()
+    if len(macs) == 1:
+        return macs[0].lower()
+    return None
+
+
+def is_broadcast_dest(line):
+    macs = MAC_RE.findall(line)
+    if len(macs) >= 1:
+        da = macs[0].lower()
+        if da in ("ff:ff:ff:ff:ff:ff", "00:00:00:00:00:00"):
+            return True
+    if "ff:ff:ff:ff:ff:ff" in line.lower():
+        return True
+    return False
+
+
 def rssi_to_percent(rssi):
     if rssi is None:
         return 0
@@ -215,7 +244,7 @@ def rssi_to_percent(rssi):
     return max(0, min(100, int(100 * (r - RSSI_MIN) / (RSSI_MAX - RSSI_MIN))))
 
 
-def draw_jam_screen(display, active, peak_history, cur_ch):
+def draw_jam_screen(display, active, peak_history, cur_ch, attack_channels):
     width, height = device.size
     img = Image.new("1", (width, height), 0)
     draw = ImageDraw.Draw(img)
@@ -235,8 +264,8 @@ def draw_jam_screen(display, active, peak_history, cur_ch):
         and data.get("pct", 0) > 0
     }
 
-    sorted_chs = sorted(
-        recent.keys(),
+    attack_sorted = sorted(
+        [ch for ch in recent if ch in attack_channels],
         key=lambda c: (
             recent[c].get("pct", 0),
             recent[c].get("count", 0)
@@ -244,8 +273,8 @@ def draw_jam_screen(display, active, peak_history, cur_ch):
         reverse=True
     )[:3]
 
-    if sorted_chs:
-        title = f"JAM! ch{sorted_chs[0]}"
+    if attack_sorted:
+        title = f"JAM! ch{attack_sorted[0]}"
 
         draw.rectangle(
             [(0, 0), (width - 1, line_h + 1)],
@@ -263,7 +292,6 @@ def draw_jam_screen(display, active, peak_history, cur_ch):
             font=font,
             fill=0
         )
-
     else:
         title = "JAMMER DETECT"
 
@@ -283,23 +311,17 @@ def draw_jam_screen(display, active, peak_history, cur_ch):
     group_start = (cur_index // 3) * 3
 
     channels_to_draw = []
-
     for i in range(3):
         index = group_start + i
-
         if index < len(CHANNELS):
             channels_to_draw.append(CHANNELS[index])
         else:
-            channels_to_draw.append(
-                CHANNELS[index % len(CHANNELS)]
-            )
+            channels_to_draw.append(CHANNELS[index % len(CHANNELS)])
 
     y = line_h + 2
-
     bar_max_w = width - 48
 
     for ch in channels_to_draw:
-
         data = recent.get(ch, {})
         pct = data.get("pct", 0)
         peak = peak_history.get(ch, 0)
@@ -316,10 +338,7 @@ def draw_jam_screen(display, active, peak_history, cur_ch):
         bh = max(6, line_h - 4)
 
         draw.rectangle(
-            [
-                (bx, by),
-                (bx + bar_max_w, by + bh)
-            ],
+            [(bx, by), (bx + bar_max_w, by + bh)],
             outline=255,
             fill=0
         )
@@ -328,24 +347,15 @@ def draw_jam_screen(display, active, peak_history, cur_ch):
 
         if fill_w > 0:
             draw.rectangle(
-                [
-                    (bx + 1, by + 1),
-                    (bx + fill_w, by + bh - 1)
-                ],
+                [(bx + 1, by + 1), (bx + fill_w, by + bh - 1)],
                 fill=255
             )
 
         if peak > 0:
-            peak_x = bx + 1 + int(
-                (bar_max_w - 2) * peak / 100
-            )
-
+            peak_x = bx + 1 + int((bar_max_w - 2) * peak / 100)
             if peak_x > bx + 1:
                 draw.line(
-                    [
-                        (peak_x, by + 1),
-                        (peak_x, by + bh - 1)
-                    ],
+                    [(peak_x, by + 1), (peak_x, by + bh - 1)],
                     fill=255
                 )
 
@@ -386,7 +396,12 @@ def run_jam_detect():
         return
 
     active = {}
-    peak_history = {ch: 0 for ch in CHANNELS}
+    peak_history = {ch: 0 for ch in CHANNELS}  
+    attack_channels = set()                    
+
+    burst_history = defaultdict(lambda: deque(maxlen=5))
+    mac_history = defaultdict(lambda: deque(maxlen=MAC_HISTORY_LEN))
+
     idx = 0
     last_draw = 0.0
     current_ch = CHANNELS[0]
@@ -416,6 +431,8 @@ def run_jam_detect():
             now = time.time()
             count = len(packets)
             best_rssi = None
+            broadcast_count = 0
+            source_macs = []
 
             for line in packets:
                 rssi = parse_rssi(line)
@@ -423,15 +440,60 @@ def run_jam_detect():
                     if best_rssi is None or rssi > best_rssi:
                         best_rssi = rssi
 
+                if is_broadcast_dest(line):
+                    broadcast_count += 1
+
+                sa = extract_source_mac(line)
+                if sa:
+                    source_macs.append(sa)
+
+            mac_counter = Counter(source_macs)
+            dominant_mac = None
+            dominant_count = 0
+            if mac_counter:
+                dominant_mac, dominant_count = mac_counter.most_common(1)[0]
+
+            mac_history[current_ch].append(mac_counter)
+
+            same_mac_ratio = (dominant_count / count) if count > 0 else 0.0
+
+            recent_mac_total = Counter()
+            for c in mac_history[current_ch]:
+                recent_mac_total.update(c)
+
+            recent_dominant = None
+            recent_dominant_count = 0
+            recent_total_packets = sum(recent_mac_total.values())
+            if recent_mac_total:
+                recent_dominant, recent_dominant_count = recent_mac_total.most_common(1)[0]
+
+            recent_same_mac_ratio = (recent_dominant_count / recent_total_packets) if recent_total_packets > 0 else 0.0
+
+            effective_count = count + int(broadcast_count * (BROADCAST_WEIGHT - 1))
+            is_burst = effective_count >= MIN_PACKETS_BURST
+
+            burst_history[current_ch].append(1 if is_burst else 0)
+            recent_bursts = sum(burst_history[current_ch])
+
+            mac_looks_like_attacker = (
+                same_mac_ratio >= MIN_SAME_MAC_RATIO or
+                recent_same_mac_ratio >= MIN_SAME_MAC_RATIO
+            )
+
+            is_real_attack = (
+                is_burst and
+                recent_bursts >= MIN_PERSISTENCE and
+                mac_looks_like_attacker
+            )
+
             if count > 0:
                 prev = active.get(current_ch, {})
                 rssi = best_rssi if best_rssi is not None else prev.get("rssi")
+
                 if rssi is not None:
                     pct = rssi_to_percent(rssi)
                 else:
                     pct = min(100, 30 + count * 18)
-
-                peak_history[current_ch] = max(peak_history[current_ch], pct)
 
                 active[current_ch] = {
                     "rssi": rssi,
@@ -439,16 +501,24 @@ def run_jam_detect():
                     "last": now,
                     "pct": pct,
                 }
+
+                if is_real_attack:
+                    peak_history[current_ch] = max(peak_history[current_ch], pct)
+                    attack_channels.add(current_ch)
+                else:
+                    attack_channels.discard(current_ch)
+
             else:
                 if current_ch in active:
                     age_ms = (now - active[current_ch]["last"]) * 1000
                     if age_ms > HOLD_MS:
                         del active[current_ch]
+                        attack_channels.discard(current_ch)
                     else:
                         active[current_ch]["pct"] = max(0, int(active[current_ch]["pct"] * 0.88))
 
             if (now - last_draw) > 0.09 or count > 0:
-                draw_jam_screen(display, active, peak_history, current_ch)
+                draw_jam_screen(display, active, peak_history, current_ch, attack_channels)
                 last_draw = now
 
             idx = (idx + 1) % len(CHANNELS)
