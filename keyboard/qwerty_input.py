@@ -1,8 +1,13 @@
 # /opt/beetle/keyboard/qwerty_input.py
+
 import time
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
 from typing import Optional
+
+
+EXIT_SENTINEL = "__EXIT__"
+
 
 class QwertyKeyboard:
     def __init__(self):
@@ -11,12 +16,13 @@ class QwertyKeyboard:
         self.HOLD_REPEAT = 0.03
 
     def qwerty_input(self, title: str) -> Optional[str]:
+ 
         keyboard = [
-            ["1","2","3","4","5","6","7","8","9","0"],
-            ["q","w","e","r","t","y","u","i","o","p"],
-            ["a","s","d","f","g","h","j","k","l","n"],
-            ["z","x","c","v","b","m","_",".",",",";"],
-            ["/","\\","@","#","-","+","=","<","OK",""]
+            ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+            ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+            ["a", "s", "d", "f", "g", "h", "j", "k", "l", "n"],
+            ["z", "x", "c", "v", "b", "m", "_", ".", ",", ";"],
+            ["/", "\\", "@", "#", "-", "+", "=", "<", "OK", "E"]
         ]
 
         rows = len(keyboard)
@@ -43,7 +49,6 @@ class QwertyKeyboard:
 
             btn = read_buttons()
 
-         
             if btn["down"]:
                 t0 = time.time()
                 while read_buttons()["down"]:
@@ -59,7 +64,6 @@ class QwertyKeyboard:
                     y = (y + 1) % rows
                     last_state = None
 
-            
             elif btn["up"]:
                 t0 = time.time()
                 while read_buttons()["up"]:
@@ -75,33 +79,30 @@ class QwertyKeyboard:
                     x = (x + 1) % cols
                     last_state = None
 
-         
             elif btn["enter"]:
                 key = keyboard[y][x]
 
-                if key == "":
-                    continue
+                if key == "E":
+                    while read_buttons()["enter"]:
+                        time.sleep(0.01)
+                    return EXIT_SENTINEL
 
-           
                 if key == "<":
                     buffer = buffer[:-1]
 
-             
                 elif key == "OK":
+                    while read_buttons()["enter"]:
+                        time.sleep(0.01)
                     return buffer
 
-              
                 elif key == "_":
                     buffer += " "
 
-              
                 elif key.isalpha():
-
-                    
                     if key == "n":
-                        opts = ["n","N","ñ","Ñ","CANCEL"]
+                        opts = ["n", "N", "ñ", "Ñ", "EXIT"]
                     else:
-                        opts = [key.lower(), key.upper(), "CANCEL"]
+                        opts = [key.lower(), key.upper(), "EXIT"]
 
                     sel = 0
                     last = None
@@ -118,17 +119,15 @@ class QwertyKeyboard:
                             sel = (sel + 1) % len(opts)
                         elif b2["enter"]:
                             choice = opts[sel]
-                            if choice != "CANCEL":
+                            if choice != "EXIT":
                                 buffer += choice
                             break
 
                         time.sleep(REPEAT_DELAY)
 
-                  
                     while read_buttons()["enter"]:
                         time.sleep(0.01)
 
-              
                 else:
                     buffer += key
                     while read_buttons()["enter"]:
