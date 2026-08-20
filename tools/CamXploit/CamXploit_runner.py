@@ -1,10 +1,24 @@
 # /opt/beetle/tools/CamXploit/CamXploit_runner.py
+
 import time
 import subprocess
 import os
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
 from keyboard.numeric_input import NumericKeyboard
+from tools.wifi.lan_scanner import get_own_ip
+
+
+def _lan_prefix() -> str:
+
+    ip = get_own_ip()
+    if not ip:
+        return ""
+    parts = ip.strip().split(".")
+    if len(parts) == 4 and all(p.isdigit() for p in parts):
+        return ".".join(parts[:3]) + "."
+    return ""
+
 
 class CamXploitRunner:
     def __init__(self):
@@ -14,34 +28,30 @@ class CamXploitRunner:
     def run(self):
         self.display.show_message(["CamXploit", "Cargando..."], center=True)
         time.sleep(1)
-
-        self.display.show_message([" Ingrese IP ", " (o IP:PUERTO) "], center=True)
-        time.sleep(2)
         
         kb = NumericKeyboard()
-        ip = kb.input_ip_port("IP")
-
+        prefix = _lan_prefix()
+        ip = kb.input_ip_port("IP", default=prefix)
         if not ip or ip.strip() == "":
             self.display.show_message([" Cancelado "], center=True)
             time.sleep(1.5)
-            return           
+            return
 
         self.display.show_message([f" Escaneando: ", ip[:16]], center=True)
         time.sleep(1)
-
         try:
             cmd = ["sudo", "python3", "/opt/beetle/tools/CamXploit/CamXploit.py"]
             result = subprocess.run(cmd, input=ip + "\n", text=True, capture_output=True, timeout=300)
-            
+
             output = result.stdout + result.stderr
             self.save_report(ip, output)
             self.show_paginated_output(output, ip)
-            
+
         except subprocess.TimeoutExpired:
             self.display.show_message([" Timeout ", " Escaneo largo "], center=True)
         except Exception as e:
             self.display.show_message([" Error: ", str(e)[:16]], center=True)
-        
+
         time.sleep(1)
 
     def qwerty_input(self, title: str) -> str:
@@ -64,21 +74,17 @@ class CamXploitRunner:
         if not lines:
             self.display.show_message([" Sin salida ", " ver reporte "], center=True)
             return
-
         summary = []
-        for line in lines[:30]: 
+        for line in lines[:30]:
             if any(k in line.lower() for k in ["open", "camera", "stream", "found", "success", "rtsp", "login", "hikvision", "dahua", "cp plus"]):
-                summary.append(line[:25]) 
-
+                summary.append(line[:25])
         if not summary:
             summary = ["Escaneo completado", f"IP: {ip}"] + lines[:8]
-
         idx = 0
         page_size = 4
         while True:
             page = summary[idx:idx + page_size]
             self.display.show_message(page, center=False)
-
             btn = read_buttons()
             if btn["down"]:
                 idx = min(idx + page_size, len(summary) - page_size)
