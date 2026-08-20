@@ -1,10 +1,10 @@
 # /opt/beetle/keyboard/numeric_input.py
-import subprocess
-import os
+
 import time
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
 from typing import Optional
+
 
 class NumericKeyboard:
     def __init__(self):
@@ -22,7 +22,8 @@ class NumericKeyboard:
                 return "hold"
             time.sleep(0.01)
 
-    def input_ip_port(self, title: str = "IP") -> Optional[str]:
+    def input_ip_port(self, title: str = "IP", default: str = "") -> Optional[str]:
+        
         chars = [
             ["1", "2", "3", "BACK"],
             ["4", "5", "6", "OK"],
@@ -33,14 +34,14 @@ class NumericKeyboard:
         cols = len(chars[0])
         x = 0
         y = 0
-        buffer = ""
+        buffer = str(default) if default else ""
         last_state = None
-        
+
         while True:
             flat = [item for sublist in chars for item in sublist]
             cursor = y * cols + x
             expr = f"{title}: {buffer[-20:]}"
-    
+
             state = (x, y, buffer)
             if state != last_state:
                 self.display.draw_grid(flat, cursor, expr, "", cols=cols, rows=rows)
@@ -55,7 +56,7 @@ class NumericKeyboard:
                 else:
                     while read_buttons().get("down", False):
                         y = (y - 1) % rows
-                        self.display.draw_grid(flat, y*cols + x, expr, "", cols=cols, rows=rows)
+                        self.display.draw_grid(flat, y * cols + x, expr, "", cols=cols, rows=rows)
                         time.sleep(self.HOLD_REPEAT)
             elif btn.get("up"):
                 action = self._detect_tap_or_hold("up")
@@ -64,7 +65,7 @@ class NumericKeyboard:
                 else:
                     while read_buttons().get("up", False):
                         x = (x - 1) % cols
-                        self.display.draw_grid(flat, y*cols + x, expr, "", cols=cols, rows=rows)
+                        self.display.draw_grid(flat, y * cols + x, expr, "", cols=cols, rows=rows)
                         time.sleep(self.HOLD_REPEAT)
 
             elif btn.get("enter"):
