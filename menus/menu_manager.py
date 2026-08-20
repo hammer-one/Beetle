@@ -16,6 +16,7 @@ from tools.CamXploit.CamXploit_runner import CamXploitRunner
 from tools.hydra.hydra_runner import HydraRunner
 from tools.jammer_detect.jam_detect_runner import run_jam_detect
 from tools.analyzer_wifi.analyzer_wifi_runner import run_analyzer_wifi
+from tools.ssh_oled.ssh_runner import SshRunner
 
 class MenuManager:
 
@@ -37,12 +38,14 @@ class MenuManager:
                 options.insert(wifi_idx + 2, "BJORN")
                 options.insert(wifi_idx + 3, "CAMXPLOIT")
                 options.insert(wifi_idx + 4, "BRUTE_FORCE_HYDRA")
+                options.insert(wifi_idx + 5, "SSH")
  
             except ValueError:
                 options.append("SCAN LAN")
                 options.append("BJORN")
                 options.append("CAMXPLOIT")
                 options.append("BRUTE_FORCE_HYDRA")
+                options.append("SSH")
               
         return options
 
@@ -90,6 +93,8 @@ class MenuManager:
                     CamXploitRunner().run()
                 elif choice == "BRUTE_FORCE_HYDRA":
                     HydraRunner().run()
+                elif choice == "SSH":
+                    SshRunner().run()
                 elif choice == "WEB_SCANNER":         
                     WebScannerRunner().run()
                 elif choice == "PWM_TEST":
