@@ -53,6 +53,7 @@ You put it in your pocket and use it in the field with one hand.
 - **BJORN** — intelligent host discovery, vulnerability prioritization, automatic file exfiltration (SMB/FTP/HTTP), credential brute-force and password hunting inside extracted files
 - **CamXploit** — camera discovery, default-credential testing and OSINT enrichment
 - **Hydra** — brute-force against common services (SSH, FTP, HTTP, etc.)
+- **SSH** — new feature, now you can connect via ssh using simple commands.
 
 ### Bluetooth
 - Device scan
@@ -81,6 +82,7 @@ You put it in your pocket and use it in the field with one hand.
 - USB Gadget mode (RNDIS → `10.0.0.2`)
 - Persistent brightness & custom fonts
 - Soft restart / full system reboot
+- Sound, a new function has been added and you can connect a passive buzzer to GPIO21, and it is configurable and persistent.
 
 ---
 
