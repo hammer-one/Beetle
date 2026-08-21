@@ -63,8 +63,4 @@ def scan_bt_devices(duration=10):
 
     return list(devices.values())
 
-if __name__ == "__main__":
-    found = scan_bt_devices(duration=10)
-    for d in found:
-        print(d)
 

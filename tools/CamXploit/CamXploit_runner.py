@@ -6,7 +6,7 @@ import os
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
 from keyboard.numeric_input import NumericKeyboard
-from tools.wifi.lan_scanner import get_own_ip
+from tools.lan_scan.lan_scanner import get_own_ip
 
 
 def _lan_prefix() -> str:

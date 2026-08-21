@@ -1,4 +1,3 @@
-# /opt/beetle/calcu/calcu_runner.py
 import time
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
@@ -26,6 +25,8 @@ class CalcuRunner:
         self.input_expr = ""
         self.output = ""
         self.display = MenuDisplay()
+
+        # cache de render
         self.last_grid_render = None
 
     # ---------------- RENDER ----------------
@@ -115,6 +116,7 @@ class CalcuRunner:
     # ---------------- RUN ----------------
 
     def run(self):
+        # render inicial (UNA SOLA VEZ)
         self._render()
         self.last_grid_render = (
             tuple(self.grid[:self.page_size]),

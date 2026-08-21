@@ -15,7 +15,6 @@ def run_bt_advertise(name, mac, rssi):
     os.makedirs(bt_reports, exist_ok=True)
     logfile = os.path.join(bt_reports, f"advertise_{timestamp}.log")
 
-    # Lista de nombres que se van a anunciar
     adv_names = ["Airpods", "Airpods Max", "Airpods Pro", "Airpods Pro 2", "Airpods Pro 3",
                  "Beats", "Beats Studio Buds", "Beats Solo Buds", "Beats Fit Pro", "Xiaomi Redmi Buds",
                  "Redmi Buds 5", "Mi True Wireless EBs", "Galaxy Buds", "Galaxy Buds+", "Galaxy Buds2",
@@ -24,7 +23,6 @@ def run_bt_advertise(name, mac, rssi):
                  "MOTO BUDS 600 ANC", "MOTO BUDS 600", "ROKR 810", "ROKR 230"
                  ]
 
-    # Lanzar bluetoothctl en modo interactivo
     proc = subprocess.Popen(
         ["bluetoothctl"],
         stdin=subprocess.PIPE,
@@ -34,7 +32,6 @@ def run_bt_advertise(name, mac, rssi):
         bufsize=1
     )
 
-    # Inicializar Bluetooth
     init_cmds = [
         "power on",
         "agent on",
@@ -58,13 +55,11 @@ def run_bt_advertise(name, mac, rssi):
                 adv_name = adv_names[name_index % len(adv_names)]
                 name_index += 1
 
-                # Cambiar nombre y reiniciar advertising
                 proc.stdin.write("advertise off\n")
                 proc.stdin.write(f"system-alias {adv_name}\n")
                 proc.stdin.write("advertise on\n")
                 proc.stdin.flush()
 
-                # Mostrar en pantalla y log
                 elapsed = int(time.time() - start)
                 remaining = max(0, 40 - elapsed)
                 logf.write(time.strftime("[%H:%M:%S] Advertising as: ") + adv_name + "\n")
@@ -73,7 +68,6 @@ def run_bt_advertise(name, mac, rssi):
                     f"Tiempo left: {remaining}s"
                 ], center=True)
 
-                # Cambia en segundos
                 for _ in range(1):
                     time.sleep(0.5)
                     buttons = read_buttons()
@@ -83,7 +77,6 @@ def run_bt_advertise(name, mac, rssi):
         except KeyboardInterrupt:
             pass
 
-    # Detener advertise y cerrar bluetoothctl
     proc.stdin.write("advertise off\n")
     proc.stdin.write("discoverable off\n")
     proc.stdin.write("exit\n")
@@ -91,4 +84,4 @@ def run_bt_advertise(name, mac, rssi):
     proc.terminate()
 
     display.show_message(["  Publicidad BT  ", "  detenida  "], center=True)
-    time.sleep(2)
+    time.sleep(1.5)

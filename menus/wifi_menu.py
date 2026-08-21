@@ -169,3 +169,4 @@ class WifiMenu:
                 last_pos = pos
 
             time.sleep(REPEAT_DELAY)
+

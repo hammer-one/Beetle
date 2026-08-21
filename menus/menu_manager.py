@@ -8,15 +8,15 @@ from menus.bt_menu import BluetoothMenu
 from tools.pwm.pwm_runner import PwmRunner
 from menus.utils_menu import UtilsMenu
 from tools.calcu.calcu_runner import CalcuRunner 
-from tools.wifi.pwnagotchi_runner import PwnagotchiRunner
+from tools.beetlegotchi.beetlegotchi_runner import BeetlegotchiRunner
 from menus.lan_menu import LanMenu                     
-from tools.wifi.lan_scanner import is_wifi_client_connected
+from tools.lan_scan.lan_scanner import is_wifi_client_connected
 from tools.bjorn.bjorn_runner import BjornRunner
 from tools.CamXploit.CamXploit_runner import CamXploitRunner
 from tools.hydra.hydra_runner import HydraRunner
 from tools.jammer_detect.jam_detect_runner import run_jam_detect
 from tools.analyzer_wifi.analyzer_wifi_runner import run_analyzer_wifi
-from tools.ssh_oled.ssh_runner import SshRunner
+from tools.ssh_tool.ssh_runner import SshRunner
 
 class MenuManager:
 
@@ -25,7 +25,12 @@ class MenuManager:
     def __init__(self):
         self.position = 0
         self.display = MenuDisplay()
-      
+
+        try:
+            from sound.sound import beep_system
+            beep_system()
+        except Exception:
+            pass
         self._render_window()
 
     def _get_current_options(self):
@@ -84,7 +89,7 @@ class MenuManager:
                 elif choice == "BLUETOOTH":
                     BluetoothMenu().run()
                 elif choice == "BEETLEGOTCHI":
-                    PwnagotchiRunner().run()
+                    BeetlegotchiRunner().run()
                 elif choice == "JAMMER_DETECT":
                     run_jam_detect()
                 elif choice == "ANALYZER_WIFI":

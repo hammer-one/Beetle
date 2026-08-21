@@ -3,11 +3,7 @@
 import time
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
-from tools.wifi.lan_scanner import (
-    scan_lan_devices,
-    is_wifi_client_connected,
-    get_open_ports
-)
+from tools.lan_scan.lan_scanner import (scan_lan_devices, is_wifi_client_connected, get_open_ports)
 
 VISIBLE_LINES = 4
 
@@ -33,7 +29,7 @@ class LanMenu:
             return
 
 
-        options = [f"{name} ({ip})" for name, ip, _, _ in self.devices]
+        options = [f"{i+1}.({ip})" for i, (_, ip, _, _) in enumerate(self.devices)]
         options.append("BACK")
 
         self.position = 0
@@ -77,15 +73,15 @@ class LanMenu:
         ports = get_open_ports(ip)
 
     
-        port_str = ", ".join(ports[:6]) if ports else "Ninguno"
+        port_str = ", ".join(ports[:6]) if ports else "None"
         if len(ports) > 6:
             port_str += f" +{len(ports)-6}"
 
         lines = [
             f"IP: {ip}",
             f"MAC:{mac}",
-            f"Fab: {vendor[:18]}",
-            f"Port: {port_str}"
+            f"Fab:{vendor[:18]}",
+            f"Prt:{port_str}"
         ]
 
         

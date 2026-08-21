@@ -8,7 +8,7 @@ import re
 import signal
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
-from tools.wifi.lan_scanner import is_wifi_client_connected, get_own_ip
+from tools.lan_scan.lan_scanner import is_wifi_client_connected, get_own_ip
 from keyboard.numeric_input import NumericKeyboard
 
 
@@ -269,6 +269,11 @@ class HydraRunner:
                 match = self.success_pattern.search(stripped)
                 if match or any(x in lower for x in ["[+]", "password found", "successful login"]):
                     user = match.group(1) if match else "Encontrado"
+                    try:
+                        from sound.sound import beep_crack
+                        beep_crack()
+                    except Exception:
+                        pass
                     self.display.show_message(["¡SUCCESS!", f"{service.upper()}"], center=True)
                     time.sleep(1.8)
                     success_found = True

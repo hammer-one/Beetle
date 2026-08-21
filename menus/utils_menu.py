@@ -43,6 +43,7 @@ class UtilsMenu:
             "USB_CONNECTION",
             "BRIGHTNESS_SET",
             "LETTERS_SET",
+            "SOUND",
             "BACK"
         ]
         self.position = 0
@@ -50,36 +51,6 @@ class UtilsMenu:
         
         self.report_mgr = ReportManager(self.display)
         self.http_mgr = HttpServerManager(self.display)
-
-#----------------- CARGA, LETRAS Y BRILLO -----------------   
-        self._init_display_settings()
-
-    def _init_display_settings(self):
-
-        try:
-            b = self.load_brightness()
-            if b is None:
-          
-                b = 128
-        
-            try:
-                self.display.set_brightness(b)
-            except Exception:
-               
-                self._set_brightness_safe(b)
-        except Exception:
-            
-            pass
-      
-        try:
-            fp, sz = self._load_letters_config()
-            if fp:
-                try:
-                    self.display.set_font(fp, sz if sz else None)
-                except Exception:
-                    pass
-        except Exception:
-            pass
 
 # ----------- INPUTS QWERTY----------------------- 
 
@@ -98,6 +69,13 @@ class UtilsMenu:
     def letters(self):
         mgr = LettersControl(self.display)
         mgr.letters()
+
+#----------- SOUND / BUZZER ------------------------------
+
+    def sound(self):
+        from sound.sound import SoundControl
+        mgr = SoundControl(self.display)
+        mgr.run()
 
 #--------------- WIFI CONF ---------------------------------   
 
@@ -176,6 +154,8 @@ class UtilsMenu:
                     self.brightness()
                 elif choice == "LETTERS_SET":
                     self.letters()
+                elif choice == "SOUND":
+                    self.sound()
                 elif choice == "BACK":
                     return
 

@@ -503,8 +503,15 @@ def run_jam_detect():
                 }
 
                 if is_real_attack:
+                    was_already = current_ch in attack_channels
                     peak_history[current_ch] = max(peak_history[current_ch], pct)
                     attack_channels.add(current_ch)
+                    if not was_already:
+                        try:
+                            from sound.sound import beep_jam
+                            beep_jam()
+                        except Exception:
+                            pass
                 else:
                     attack_channels.discard(current_ch)
 

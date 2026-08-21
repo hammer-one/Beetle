@@ -103,7 +103,6 @@ def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
     cap_files = []
     bssid_for_crack = None
 
-    # ====================== MODO DIRECTO (Beetlegotchi CRACK) ======================
     if cap_path and os.path.isfile(cap_path):
         cap_files = [cap_path]
    
@@ -120,7 +119,6 @@ def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
         display.show_message([" Crackeando .cap ", os.path.basename(cap_path)[:18]], center=True)
         time.sleep(1)
 
-    # ====================== MODO CLÁSICO (WiFi Menu) ======================
     else:
         if not ssid or not bssid:
             display.show_message(["Error: falta", "datos de red"], center=True)
@@ -151,7 +149,6 @@ def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
     if not cap_files:
         return None
 
-    # ====================== SELECCIÓN DE DICCIONARIO ======================
     wordlist = _select_wordlist(display)
     if not wordlist:
         display.show_message(["Cancelado"], center=True)
@@ -169,7 +166,6 @@ def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
     psk_path = os.path.join(wifi_folder, f"psk_{safe_ssid}_{timestamp}.txt")
     logfile = os.path.join(wifi_folder, f"aircrack_{safe_ssid}_{timestamp}.log")
 
-    # ====================== FUNCIÓN INTERNA DE CRACK ======================
     def crack_cap(capfile, logfile_handle):
         nonlocal bssid_for_crack
         bssid = bssid_for_crack
@@ -208,6 +204,11 @@ def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
                     display.show_message(["Sin clave en diccionario"], center=True)
                 elif "key found" in lower or "passphrase is" in lower:
                     key_found = True
+                    try:
+                        from sound.sound import beep_crack
+                        beep_crack()
+                    except Exception:
+                        pass
                     try:
                         if "key found" in lower:
                             parte = lower.split("key found!")[1].strip()
@@ -258,7 +259,6 @@ def run_aircrack(ssid=None, bssid=None, channel=None, cap_path=None):
 
         return found_key
 
-    # ====================== EJECUCIÓN ======================
     try:
         with open(logfile, "w") as log_f:
             log_f.write(f"Wordlist: {wordlist}\n")

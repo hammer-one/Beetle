@@ -1,10 +1,11 @@
 # config/gpio_config.py
+
 import RPi.GPIO as GPIO
 import time
 
 # Pines BCM 
-BTN_UP = 27      # botón "arriba"
-BTN_DOWN = 17    # botón "abajo"
+BTN_UP = 27      # botón "up"
+BTN_DOWN = 17    # botón "down"
 BTN_ENTER = 22   # botón "enter"
 
 DEBOUNCE_MS = 50   # reducimos a 50 ms para no requerir mantener 1s
@@ -19,32 +20,36 @@ def init_gpio():
 def cleanup_gpio():
     GPIO.cleanup()
 
+def _try_keyboard_beep():
+
+    try:
+        from sound.sound import beep_keyboard
+        beep_keyboard()
+    except Exception:
+        pass
+
 def read_buttons():
-    """
-    Devuelve un diccionario con True/False según si se presionó el botón.
-    Hacemos un debounce breve de 50 ms.
-    """
     state = {"up": False, "down": False, "enter": False}
 
-    # Leer UP
     if not GPIO.input(BTN_UP):
         time.sleep(DEBOUNCE_MS / 1000.0)
         if not GPIO.input(BTN_UP):
             state["up"] = True
+            _try_keyboard_beep()
             return state
 
-    # Leer DOWN
     if not GPIO.input(BTN_DOWN):
         time.sleep(DEBOUNCE_MS / 1000.0)
         if not GPIO.input(BTN_DOWN):
             state["down"] = True
+            _try_keyboard_beep()
             return state
 
-    # Leer ENTER
     if not GPIO.input(BTN_ENTER):
         time.sleep(DEBOUNCE_MS / 1000.0)
         if not GPIO.input(BTN_ENTER):
             state["enter"] = True
+            _try_keyboard_beep()
             return state
 
     return state

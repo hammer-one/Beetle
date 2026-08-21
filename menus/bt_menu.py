@@ -121,3 +121,4 @@ class BluetoothMenu:
                 last_pos = pos
 
             time.sleep(REPEAT_DELAY)
+

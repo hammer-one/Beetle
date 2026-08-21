@@ -8,7 +8,7 @@ import subprocess
 import shutil
 from display.screen import MenuDisplay
 from config.gpio_config import read_buttons, REPEAT_DELAY
-from tools.wifi.lan_scanner import is_wifi_client_connected, get_own_ip
+from tools.lan_scan.lan_scanner import is_wifi_client_connected, get_own_ip
 
 VISIBLE_LINES = 4
 
