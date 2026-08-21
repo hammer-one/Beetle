@@ -14,6 +14,7 @@ from config.gpio_config import read_buttons, REPEAT_DELAY
 from tools.wifi.scanner import scan_networks, count_clients
 from PIL import Image, ImageDraw, ImageFont
 from tools.beetlegotchi.wpa_sec_uploader import run_wpa_sec_upload
+from keyboard.qwerty_input import QwertyKeyboard, EXIT_SENTINEL
 
 VISIBLE_LINES = 4
 WORDLIST_DIR = "/usr/share/wordlists"
@@ -907,8 +908,113 @@ class BeetlegotchiRunner:
             self.display.show_message(["  Error al borrar  " ], center=True)
         time.sleep(2.5)
 
+    def _save_friends(self):
+
+        header_lines = []
+        try:
+            if os.path.isfile(self.friends_file):
+                with open(self.friends_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        stripped = line.strip()
+                        if stripped.startswith("#") or stripped == "":
+                            header_lines.append(line.rstrip("\n"))
+                        else:
+                            break
+        except Exception:
+            pass
+
+        if not header_lines:
+            header_lines = [
+                "#--------------------------------------- Examples ----------------------------------------#",
+                ""
+            ]
+
+        try:
+            with open(self.friends_file, "w", encoding="utf-8") as f:
+                for h in header_lines:
+                    f.write(h + "\n")
+                for ssid in sorted(self.friends_ssids):
+                    f.write(ssid + "\n")
+        except Exception:
+            self.display.show_message([" Error al guardar "], center=True)
+            time.sleep(1.5)
+
+    def _add_friend(self):
+        kb = QwertyKeyboard()
+        result = kb.qwerty_input("SSID")
+        if result is None or result == EXIT_SENTINEL or not str(result).strip():
+            return
+        ssid = str(result).strip()
+        if ssid in self.friends_ssids:
+            self.display.show_message([" Ya existe "], center=True)
+            time.sleep(1.5)
+            return
+        self.friends_ssids.add(ssid)
+        self._save_friends()
+        self.display.show_message([" Agregado: ", ssid[:16]], center=True)
+        time.sleep(1.5)
+
+    def _confirm_delete_friend(self, ssid: str) -> bool:
+        options = ["NO", "SI, BORRAR"]
+        position = 0
+        last_pos = -1
+        self.display.show_message([" Borrar friend? ", ssid[:16]], center=True)
+        time.sleep(1.0)
+        while True:
+            buttons = read_buttons()
+            if buttons["up"]:
+                position = (position - 1) % len(options)
+            elif buttons["down"]:
+                position = (position + 1) % len(options)
+            elif self._is_enter_pressed():
+                if options[position] == "NO":
+                    return False
+                self.friends_ssids.discard(ssid)
+                self._save_friends()
+                self.display.show_message([" Eliminado: ", ssid[:16]], center=True)
+                time.sleep(1.5)
+                return True
+            if position != last_pos:
+                self.display.render(options, position)
+                last_pos = position
+            time.sleep(REPEAT_DELAY)
+
+    def _friend_list_menu(self):
+        while True:
+
+            self.friends_ssids = self._load_friends_ssids()
+            friends = sorted(self.friends_ssids)
+            options = friends + ["ADD", "BACK"]
+            position = 0
+            last_pos = -1
+            while True:
+                buttons = read_buttons()
+                if buttons["up"]:
+                    position = (position - 1) % len(options)
+                elif buttons["down"]:
+                    position = (position + 1) % len(options)
+                elif self._is_enter_pressed():
+                    choice = options[position]
+                    if choice == "BACK":
+                        return
+                    elif choice == "ADD":
+                        self._add_friend()
+                        break 
+                    else:
+                   
+                        if self._confirm_delete_friend(choice):
+                            break 
+                        last_pos = -1
+                        self.display.invalidate()
+                if position != last_pos:
+                    start = max(0, position - (VISIBLE_LINES - 1))
+                    window = options[start:start + VISIBLE_LINES]
+                    self.display.render(window, position - start)
+                    last_pos = position
+                time.sleep(REPEAT_DELAY)
+
     def run(self):
-        options = ["SCAN", "CRACK", "UPLOAD_WPASEC", "DELETE_ALL", "BACK"]
+        options = ["SCAN", "CRACK", "FRIEND_LIST", "UPLOAD_WPASEC", "DELETE_ALL", "BACK"]
         position = 0
         last_pos = -1
         while True:
@@ -929,6 +1035,8 @@ class BeetlegotchiRunner:
                     self._crack_menu()
                 elif choice == "UPLOAD_WPASEC":
                     run_wpa_sec_upload()
+                elif choice == "FRIEND_LIST":
+                    self._friend_list_menu()
                 elif choice == "DELETE_ALL":
                     self._borrar_menu()
 
