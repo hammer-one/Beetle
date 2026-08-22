@@ -9,6 +9,7 @@ import signal
 import sys
 import random
 import math
+import threading
 from display.screen import MenuDisplay, device
 from config.gpio_config import read_buttons, REPEAT_DELAY
 from tools.wifi.scanner import scan_networks, count_clients
@@ -19,6 +20,8 @@ from keyboard.qwerty_input import QwertyKeyboard, EXIT_SENTINEL
 VISIBLE_LINES = 4
 WORDLIST_DIR = "/usr/share/wordlists"
 DEFAULT_WORDLIST = "/usr/share/wordlists/rockyou.txt"
+
+AUTO_WORDLIST = "/opt/beetle/tools/beetlegotchi/passgotchi.txt"
 
 IFACE = "mon0"
 MON_UP_CMD = ["sudo", "mon0up"]
@@ -31,6 +34,49 @@ AIREDURATION_LIMIT = 25
 _child_procs = []
 _interrupted = False
 _brought_up_by_script = False
+
+_cpu_prev = None  
+
+
+def _get_mem_percent():
+    try:
+        total = avail = None
+        with open("/proc/meminfo", "r") as f:
+            for line in f:
+                if line.startswith("MemTotal:"):
+                    total = int(line.split()[1])
+                elif line.startswith("MemAvailable:"):
+                    avail = int(line.split()[1])
+                if total is not None and avail is not None:
+                    break
+        if total and avail is not None and total > 0:
+            return max(0, min(100, int(100 * (1.0 - avail / total))))
+    except Exception:
+        pass
+    return 0
+
+
+def _get_cpu_percent():
+    global _cpu_prev
+    try:
+        with open("/proc/stat", "r") as f:
+            parts = f.readline().split()
+
+        nums = [int(x) for x in parts[1:8]]
+        idle = nums[3] + (nums[4] if len(nums) > 4 else 0)
+        total = sum(nums)
+        if _cpu_prev is None:
+            _cpu_prev = (idle, total)
+            return 0
+        prev_idle, prev_total = _cpu_prev
+        _cpu_prev = (idle, total)
+        d_idle = idle - prev_idle
+        d_total = total - prev_total
+        if d_total <= 0:
+            return 0
+        return max(0, min(100, int(100 * (1.0 - d_idle / d_total))))
+    except Exception:
+        return 0
 
 
 def _find_wordlists():
@@ -373,6 +419,7 @@ class BeetlegotchiRunner:
     def __init__(self):
         self.display = MenuDisplay()
         self.handshakes = 0
+        self.passwords_found = 0
         self.last_networks = []
         self.reports_folder = "/opt/beetle/reports"
         os.makedirs(self.reports_folder, exist_ok=True)
@@ -386,6 +433,12 @@ class BeetlegotchiRunner:
         self.mood_start_time = time.time()
         self.last_enter_time = 0
         self.ENTER_COOLDOWN = 0.28
+        self._crack_lock = threading.Lock()
+        self._cracking_active = set() 
+        self._mem_pct = 0
+        self._cpu_pct = 0
+        self._last_stats_ts = 0
+        self._count_existing_passwords()
 
         self.face_variations = {
             "cool": ["cool"],
@@ -403,6 +456,30 @@ class BeetlegotchiRunner:
             "sleepy": ["sleepy"],
             "surprised": ["surprised"]
         }
+
+    def _count_existing_passwords(self):
+
+        count = 0
+        try:
+            for f in os.listdir(self.beetlegotchi_folder):
+                if f.startswith("psk_") and f.endswith(".txt"):
+                    path = os.path.join(self.beetlegotchi_folder, f)
+                    try:
+                        if os.path.getsize(path) > 0:
+                            count += 1
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        self.passwords_found = count
+
+    def _update_system_stats(self):
+        now = time.time()
+        if now - self._last_stats_ts < 1.0:
+            return
+        self._last_stats_ts = now
+        self._mem_pct = _get_mem_percent()
+        self._cpu_pct = _get_cpu_percent()
 
     def _load_friends_ssids(self):
         friends = set()
@@ -476,12 +553,13 @@ class BeetlegotchiRunner:
             draw.rectangle([right_eye_x + 4, eye_y + 10, right_eye_x + eye_size - 4, eye_y + 13], fill=255)
             try:
                 z_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
-            except:
+            except Exception:
                 z_font = self.display.font
-            t = (time.time() * 8) % 20
-            draw.text((36 + t, 12 - t//3), "Z", font=z_font, fill=255)
-            draw.text((44 + t, 7 - t//3), "z", font=z_font, fill=255)
-            draw.text((52 + t, 3 - t//3), "z", font=z_font, fill=255)
+            # Animación más rápida de las Zzz
+            t = (time.time() * 14) % 22
+            draw.text((36 + t, 12 - t // 3), "Z", font=z_font, fill=255)
+            draw.text((44 + t, 7 - t // 3), "z", font=z_font, fill=255)
+            draw.text((52 + t, 3 - t // 3), "z", font=z_font, fill=255)
         else:
             pupil_size = 7
             px = left_eye_x + 8 + offset_x
@@ -503,7 +581,8 @@ class BeetlegotchiRunner:
         elif face_type == "thinking":
             draw.arc([mouth_x + 6, mouth_y + 2, mouth_x + mouth_w - 6, mouth_y + 9], start=0, end=180, fill=255, width=2)
         elif face_type == "sleepy":
-            phase = (time.time() * 3) % 3
+            # Boca que "respira" más rápido
+            phase = (time.time() * 5.5) % 3
             if phase < 1:
                 size = 4
             elif phase < 2:
@@ -513,7 +592,7 @@ class BeetlegotchiRunner:
             cx = mouth_x + mouth_w // 2
             cy = mouth_y + 7
             draw.ellipse(
-                [cx - size//2, cy - size//2, cx + size//2, cy + size//2],
+                [cx - size // 2, cy - size // 2, cx + size // 2, cy + size // 2],
                 outline=255,
                 fill=255
             )
@@ -540,8 +619,10 @@ class BeetlegotchiRunner:
     def show_pwnagotchi_face(self, face: str, ssid: str = ""):
         now = time.time()
         is_important = face in ("handshake_success", "angry", "frustrated", "excited", "surprised")
+        is_animated = face in ("sleepy", "bored")
+        min_interval = 0.12 if is_animated else 0.55
         if (face == self.current_face and ssid == self.current_ssid and
-            not is_important and (now - self.last_face_time < 0.6)):
+            not is_important and (now - self.last_face_time < min_interval)):
             return
 
         variations = self.face_variations.get(face, [face])
@@ -550,11 +631,52 @@ class BeetlegotchiRunner:
         self.current_ssid = ssid
         self.last_face_time = now
 
+        self._update_system_stats()
+
         with self.display.lock:
             img = Image.new("1", device.size)
             draw = ImageDraw.Draw(img)
             hs_text = f"HS:{self.handshakes}"
             draw.text((2, 1), hs_text, font=self.display.font, fill=255)
+
+            try:
+                small = ImageFont.truetype(
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 8
+                )
+            except Exception:
+                try:
+                    small = ImageFont.truetype(
+                        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 8
+                    )
+                except Exception:
+                    small = self.display.font
+
+            w = device.width
+            lines = [
+                f"pw:{self.passwords_found}",
+                f"mem:{self._mem_pct}%",
+                f"cpu:{self._cpu_pct}%",
+            ]
+
+            max_tw = 0
+            widths = []
+            for line in lines:
+                try:
+                    bbox = draw.textbbox((0, 0), line, font=small)
+                    tw = bbox[2] - bbox[0]
+                except Exception:
+                    tw = len(line) * 5
+                widths.append(tw)
+                if tw > max_tw:
+                    max_tw = tw
+
+            right_margin = 5
+            x = max(0, w - max_tw - right_margin)
+            y = 1
+            for line in lines:
+                draw.text((x, y), line, font=small, fill=255)
+                y += 9
+
             self._draw_pwn_face(draw, chosen_face, ssid)
             self.display.display(img)
 
@@ -624,14 +746,142 @@ class BeetlegotchiRunner:
         dest = os.path.join(self.beetlegotchi_folder, filename)
         try:
             shutil.move(temp_cap_path, dest)
+            self._start_auto_crack(dest, ssid, bssid)
             return True
         except Exception:
             try:
                 shutil.copy2(temp_cap_path, dest)
                 os.remove(temp_cap_path)
+                self._start_auto_crack(dest, ssid, bssid)
                 return True
             except Exception:
                 return False
+
+    def _start_auto_crack(self, cap_path: str, ssid: str = "", bssid: str = ""):
+
+        with self._crack_lock:
+            if cap_path in self._cracking_active:
+                return
+            if not os.path.isfile(AUTO_WORDLIST):
+                return
+            self._cracking_active.add(cap_path)
+
+        def _worker():
+            try:
+                self._auto_crack_worker(cap_path, ssid, bssid)
+            finally:
+                with self._crack_lock:
+                    self._cracking_active.discard(cap_path)
+
+        t = threading.Thread(target=_worker, daemon=True, name=f"crack-{os.path.basename(cap_path)[:20]}")
+        t.start()
+
+    def _auto_crack_worker(self, cap_path: str, ssid: str = "", bssid: str = ""):
+
+        if not os.path.isfile(cap_path) or not os.path.isfile(AUTO_WORDLIST):
+            return
+
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        safe = "".join(c for c in (ssid or "unk") if c.isalnum() or c in "-_")[:18]
+        psk_path = os.path.join(self.beetlegotchi_folder, f"psk_{safe}_{timestamp}.txt")
+        logfile = os.path.join(self.beetlegotchi_folder, f"autocrack_{safe}_{timestamp}.log")
+
+        bssid_for_crack = None
+        if bssid:
+            bssid_for_crack = bssid
+        else:
+            fname = os.path.basename(cap_path)
+            base = os.path.splitext(fname)[0]
+            potential = base.split("_")[-1].replace("-", "").replace(":", "")
+            if len(potential) == 12 and all(c in "0123456789abcdefABCDEF" for c in potential):
+                bssid_for_crack = ":".join(potential[i:i + 2] for i in range(0, 12, 2))
+
+        if bssid_for_crack:
+            cmd = [
+                "sudo", "aircrack-ng",
+                "-w", AUTO_WORDLIST,
+                "-b", bssid_for_crack,
+                "-l", psk_path,
+                cap_path,
+            ]
+        else:
+            cmd = [
+                "sudo", "aircrack-ng",
+                "-w", AUTO_WORDLIST,
+                "-l", psk_path,
+                cap_path,
+            ]
+
+        key_found = None
+        try:
+            with open(logfile, "w") as log_f:
+                log_f.write(f"AUTO-CRACK Wordlist: {AUTO_WORDLIST}\n")
+                log_f.write(f"CMD: {' '.join(cmd)}\n")
+                log_f.flush()
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
+                try:
+                    for raw in proc.stdout:
+                        line = raw.rstrip("\n")
+                        log_f.write(line + "\n")
+                        log_f.flush()
+                        lower = line.strip().lower()
+                        if "key found" in lower or "passphrase is" in lower:
+                            try:
+                                if "key found" in lower:
+                                    parte = lower.split("key found!")[1].strip()
+                                else:
+                                    parte = lower.split("passphrase is")[1].strip()
+                                clave = parte.strip(" []\"'\n")
+                                if clave:
+                                    key_found = clave
+                            except Exception:
+                                pass
+                            try:
+                                proc.send_signal(signal.SIGINT)
+                            except Exception:
+                                try:
+                                    proc.terminate()
+                                except Exception:
+                                    pass
+                            break
+                finally:
+                    try:
+                        proc.wait(timeout=8)
+                    except Exception:
+                        try:
+                            proc.kill()
+                        except Exception:
+                            pass
+        except Exception:
+            return
+
+        if not key_found and os.path.isfile(psk_path):
+            try:
+                with open(psk_path, "r") as f:
+                    content = f.read().strip()
+                if content:
+                    key_found = content
+            except Exception:
+                pass
+
+        if key_found:
+            try:
+                with open(psk_path, "w") as f:
+                    f.write(key_found + "\n")
+            except Exception:
+                pass
+            self.passwords_found += 1
+            try:
+                self.update_status("handshake_success", ssid or "KEY!")
+                time.sleep(1.8)
+            except Exception:
+                pass
 
     def _crack_single_file(self, cap_path, filename):
         self.display.show_message([" Crackeando... ", filename[:18]], center=True)
@@ -759,6 +1009,7 @@ class BeetlegotchiRunner:
                     f.write(key_found + "\n")
             except Exception:
                 pass
+            self.passwords_found += 1
             clave_display = key_found if len(key_found) <= 16 else (key_found[:16] + "...")
             self.display.show_message([clave_display], center=True)
             time.sleep(5)
@@ -779,6 +1030,11 @@ class BeetlegotchiRunner:
             elapsed = time.time() - self.mood_start_time
             if elapsed > 45:
                 self.update_status("sleepy")
+                for _ in range(3):
+                    if self.check_exit():
+                        return
+                    time.sleep(0.3)
+                    self.update_status("sleepy")
             elif elapsed > 30:
                 self.update_status("bored")
             elif elapsed > 15:
@@ -835,17 +1091,20 @@ class BeetlegotchiRunner:
                 time.sleep(1.2)
 
             self.update_status("neutral")
-            for _ in range(4):
+
+            for _ in range(12):
                 if self.check_exit():
                     return
                 wait_time = time.time() - self.mood_start_time
                 if wait_time > 50:
                     self.update_status("sleepy")
+                    time.sleep(0.35) 
                 elif wait_time > 35:
                     self.update_status("bored")
+                    time.sleep(1.2)
                 else:
                     self.update_status(random.choice(["looking_left", "looking_right", "thinking"]))
-                time.sleep(4.5)
+                    time.sleep(1.5)
 
     def _crack_menu(self):
         cap_files = [f for f in os.listdir(self.beetlegotchi_folder) if f.lower().endswith(('.cap', '.pcap', '.pcapng', '.22000'))]
