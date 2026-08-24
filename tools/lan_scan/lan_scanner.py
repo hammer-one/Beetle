@@ -51,10 +51,33 @@ def scan_lan_devices() -> List[Tuple[str, str, str, str]]:
     if not own_ip:
         return []
 
-    subnet = ".".join(own_ip.split(".")[:3]) + ".0/24"
+    try:
+        route_result = subprocess.run(
+            ["ip", "-4", "route", "show", "dev", "wlan0"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=2
+        )
+
+        if route_result.returncode != 0:
+            return []
+
+        subnet = None
+
+        for route in route_result.stdout.splitlines():
+            m = re.match(r"^(\d+\.\d+\.\d+\.\d+/\d+)", route)
+            if m:
+                subnet = m.group(1)
+                break
+
+        if not subnet:
+            return []
+
+    except Exception:
+        return []
 
     try:
-
         cmd = ["sudo", "nmap", "-sn", "-T4", "--min-rate", "1000", subnet]
         result = subprocess.run(
             cmd,
@@ -63,11 +86,15 @@ def scan_lan_devices() -> List[Tuple[str, str, str, str]]:
             text=True,
             timeout=25
         )
+
         if result.returncode != 0:
             return []
+
         output = result.stdout
+
     except Exception:
         return []
+
 
     devices: List[Tuple[str, str, str, str]] = []
     lines = output.splitlines()
