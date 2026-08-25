@@ -49,7 +49,7 @@ class HttpServerManager:
             ip_text = "Sin conexión"
 
         self.display.show_message(
-            ["Accede por red a:", ip_text, "", "<ENTER> ----> Salir"],
+            ["Accede por red a:", ip_text, "", "ENTER -> Exit"],
             center=False
         )
 
