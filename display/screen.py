@@ -36,7 +36,7 @@ class MenuDisplay:
             if fp:
                 self._apply_font(fp, menu_sz if menu_sz else DEFAULT_FONT_SIZE, which="menu")
                 self._apply_font(fp, sys_sz if sys_sz else DEFAULT_FONT_SIZE, which="system")
-                self.font = self.menu_font  # por defecto menú
+                self.font = self.menu_font  
         except Exception:
             pass
 
@@ -69,7 +69,7 @@ class MenuDisplay:
             return None
 
     def _apply_font(self, path: str, size: int, which: str = "menu"):
-        """which: 'menu' | 'system' | 'both'"""
+
         try:
             if path and path.lower().endswith((".ttf", ".otf")):
                 fnt = ImageFont.truetype(path, int(size))
@@ -181,10 +181,15 @@ class MenuDisplay:
 
         self._buffer.paste(new_img, (0, 0))
 
-
-        device.display(self._buffer)  
+        device.display(self._buffer)
 
         self._last_hash = new_hash
+
+        try:
+            from server.remote_state import save_oled_image
+            save_oled_image(self._buffer)
+        except Exception:
+            pass
 
     def clear(self):
         with self.lock:
