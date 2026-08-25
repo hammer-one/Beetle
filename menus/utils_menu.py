@@ -37,6 +37,7 @@ class UtilsMenu:
             "VIEW_REPORTS",
             "HTTP_REPORTS",
             "DELETE_REPORTS",
+            "WEB_REMOTE",
             "RESTART_Beetle",
             "REBOOT_System",
             "WIFI_CONNECTION",
@@ -142,6 +143,9 @@ class UtilsMenu:
                     self.wifi_reports_http()
                 elif choice == "DELETE_REPORTS":
                     self.clear_reports()
+                elif choice == "WEB_REMOTE":
+                    from server.remote.remote_manager import RemoteManager
+                    RemoteManager(self.display).run()
                 elif choice == "RESTART_Beetle":
                     self.restart_app()
                 elif choice == "REBOOT_System":
