@@ -54,7 +54,7 @@ class PwmRunner:
                     "Seleccionar Modo",
                     f"> {modes[index]}",
                     "UP/DOWN cambiar",
-                    "ENTER confirmar"
+                    "<ENTER> confirmar"
                 ]
                 self.display.show_message(lines, center=False)
                 last_index = index
@@ -133,7 +133,7 @@ class PwmRunner:
             fill=255
         )
 
-        instruction = "ENTER ---> Salir"
+        instruction = "ENTER -> Exit"
 
         try:
             instruction_w = font.getbbox(instruction)[2]
