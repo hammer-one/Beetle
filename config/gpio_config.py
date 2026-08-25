@@ -8,7 +8,7 @@ BTN_UP = 27      # botón "up"
 BTN_DOWN = 17    # botón "down"
 BTN_ENTER = 22   # botón "enter"
 
-DEBOUNCE_MS = 50   # reducimos a 50 ms para no requerir mantener 1s
+DEBOUNCE_MS = 50   # 50 ms debounce
 REPEAT_DELAY = 0.05  # 50 ms de espera en el loop principal
 
 def init_gpio():
@@ -21,7 +21,6 @@ def cleanup_gpio():
     GPIO.cleanup()
 
 def _try_keyboard_beep():
-
     try:
         from sound.sound import beep_keyboard
         beep_keyboard()
@@ -29,6 +28,7 @@ def _try_keyboard_beep():
         pass
 
 def read_buttons():
+
     state = {"up": False, "down": False, "enter": False}
 
     if not GPIO.input(BTN_UP):
@@ -52,5 +52,13 @@ def read_buttons():
             _try_keyboard_beep()
             return state
 
-    return state
+    try:
+        from server.remote_state import get_remote_buttons
+        remote = get_remote_buttons()
+        if any(remote.values()):
+            _try_keyboard_beep()
+            return remote
+    except Exception:
+        pass
 
+    return state
